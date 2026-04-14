@@ -68,7 +68,7 @@ export const FIGURES = {
   litotes: {
     id: 'litotes',
     name: 'Litotes',
-    description: 'Timer startuje od 45s zamiast 30s',
+    description: 'Timer startuje od 90s zamiast 60s',
     linguisticMeaning: 'Niedopowiedzenie, umniejszenie',
     type: 'passive',
     rarity: 'rare',
