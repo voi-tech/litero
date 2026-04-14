@@ -484,7 +484,7 @@ export function renderAnteScreen(ante) {
   const title = $('ante-title');
   const changes = $('ante-changes');
 
-  if (badge) badge.textContent = `ANTE ${romanMap[ante] || ante}`;
+  if (badge) badge.textContent = `ROZDZIAŁ ${romanMap[ante] || ante}`;
   if (title) title.textContent = `Poziom trudności wzrósł`;
 
   const items = [
