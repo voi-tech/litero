@@ -1,385 +1,393 @@
-// src/game.js — core game loop i stan gry
+// src/game.js — rdzeń gry Litero (Balatro-inspired)
 
 import { emitter } from './eventEmitter.js';
-import { getRandomWord } from './words.js';
-import {
-  calculateHit,
-  calculateMiss,
-  calculateInkReward,
-  calculateTimeBonus,
-} from './scoring.js';
-import { applyFigureHooks, activateFigure, FIGURES } from './figures.js';
-import { createTimer } from './timer.js';
+import categoriesData from '../data/categories.json';
+import { buildHand, replenishHand } from './letters.js';
+import { loadDictionary, isValidWord } from './dictionary.js';
+import { scoreWord, calcInkReward } from './scoring.js';
+import { applyFigureHooks, FIGURES, getRandomFigures, getFigureSellValue, setReplenishHand } from './figures.js';
 
-// ---- Stan gry ----------------------------------------------
+// Podpięcie replenishHand pod figures.js (unikamy circular import)
+setReplenishHand(replenishHand);
+
+export const CATEGORIES = categoriesData.categories;
+
+// ---- Stan gry -----------------------------------------------
 
 export const gameState = {
-  // meta
-  round: 1,
-  maxRounds: 10,
-  ante: 1,
-  phase: 'start',
-  difficultyMode: 'normal',
+  phase: 'start', // start | map | blind-select | game | summary | scriptorium | victory | defeat
 
-  // ekonomia
-  score: 0,
-  ink: 0,
-  multiplier: 1.0,
-  basePoints: 0,
-  roundScore: 0,
+  // Progres
+  categoryIndex: 0,
+  blindIndex: 0,          // 0=small 1=big 2=boss
+  completedBlinds: [],    // [{ categoryId, blindId, skipped, score }]
 
-  // słowo
-  word: '',
-  definition: '',
-  hint: '',
-  category: '',
-  revealed: [],
-  usedLetters: {},
-  errors: 0,
-  bezblednikUsed: false,
+  // Ekonomia
+  ink: 3,
 
-  // figury
-  activeFigures: [],
-  handFigures: [],
+  // Aktualny blind
+  currentBlind: null,
+  currentCategory: null,
+  runningScore: 0,
+  playsLeft: 5,
+  discardsLeft: 3,        // 3 per KATEGORIA (współdzielone przez 3 blindy)
+  playsUsedThisBlind: 0,
 
-  // combo
-  combo: 0,
-  comboBeforeLastMiss: 0,
-  maxComboThisRun: 0,
+  // Ręka
+  hand: [],
+  letterPool: [],
+  selectedIndices: [],    // indeksy zaznaczonych liter w ręce
 
-  // timer
-  timeLeft: 60,
-  timerRunning: false,
+  // Odkryte litery docelowego słowa (Set indeksów)
+  revealedLetters: new Set(),
 
-  // statystyki
-  wordsGuessed: 0,
-  wordsFailed: 0,
+  // Figury
+  activeFigures: [],      // max 5 pasywnych (IDs)
+  handFigures: [],        // jednorazowe (IDs)
+
+  // Stan figur (reset per blind)
+  _figureState: {},
+
+  // Kombo: ile kolejnych słów z kategorii
+  categoryStreak: 0,
+
+  // Statystyki run
   totalScore: 0,
+  wordsPlayedThisRun: [],
   highScore: 0,
 
-  // pula użytych słów
-  usedWordIds: [],
+  // Tagi (bonusy ze skipowania)
+  pendingTags: [],
+
+  // Oferta figur (ekran blind-select)
+  _figureOffer: [],
 };
 
-let currentTimer = null;
-
-// ---- Inicjalizacja gry ------------------------------------
+// ---- Init ---------------------------------------------------
 
 export function initGame() {
-  const hs = localStorage.getItem('zgadka_highscore');
+  loadDictionary();
+  const hs = localStorage.getItem('litero_highscore');
   gameState.highScore = hs ? parseInt(hs, 10) : 0;
 }
 
-export function startGame(settings) {
-  const { maxRounds, difficulty, category = 'all' } = settings;
+// ---- Start nowej gry ----------------------------------------
 
-  gameState.round = 1;
-  gameState.maxRounds = maxRounds;
-  gameState.ante = 1;
-  gameState.difficultyMode = difficulty;
-  gameState.selectedCategory = category;
-  gameState.score = 0;
-  gameState.ink = 0;
-  gameState.totalScore = 0;
-  gameState.wordsGuessed = 0;
-  gameState.wordsFailed = 0;
-  gameState.maxComboThisRun = 0;
+export function startGame() {
+  const { hand, pool } = buildHand();
+
+  gameState.phase = 'map';
+  gameState.categoryIndex = 0;
+  gameState.blindIndex = 0;
+  gameState.completedBlinds = [];
+  gameState.ink = 3;
   gameState.activeFigures = [];
   gameState.handFigures = [];
-  gameState.usedWordIds = [];
-  gameState.phase = 'figure-pick';
+  gameState.totalScore = 0;
+  gameState.wordsPlayedThisRun = [];
+  gameState.pendingTags = [];
+  gameState.hand = hand;
+  gameState.letterPool = pool;
+
+  emitter.emit('gameStarted', { state: gameState });
 }
 
-// ---- Start rundy ------------------------------------------
+// ---- Wejście w kategorię ------------------------------------
 
-export async function startRound() {
-  if (currentTimer) currentTimer.stop();
+export function enterCategory(categoryIndex) {
+  gameState.categoryIndex = categoryIndex;
+  gameState.blindIndex = 0;
+  gameState.discardsLeft = 3;
+  gameState.currentCategory = CATEGORIES[categoryIndex];
+  gameState.phase = 'blind-select';
+  gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
 
-  // Wybierz słowo
-  const wordEntry = getRandomWord(gameState.usedWordIds, gameState.ante, gameState.difficultyMode, gameState.selectedCategory);
-  if (!wordEntry) {
-    endGame();
+  emitter.emit('categoryEntered', { state: gameState });
+}
+
+// ---- Próba pominięcia blinda --------------------------------
+
+export function trySkipBlind(blindIndex, attempt) {
+  const blind = CATEGORIES[gameState.categoryIndex].blinds[blindIndex];
+  const correct = attempt.trim().toUpperCase() === blind.word.toUpperCase();
+
+  if (correct) {
+    // Pominięto — przyznaj tag
+    const tag = randomTag();
+    gameState.pendingTags.push(tag);
+    applyTag(tag);
+    gameState.completedBlinds.push({
+      categoryId: gameState.currentCategory.id,
+      blindId: blind.id,
+      skipped: true,
+      score: 0,
+    });
+    emitter.emit('blindSkipped', { blind, tag, state: gameState });
+    // Przejdź do następnego blinda lub zakończ kategorię
+    advanceAfterBlind(true);
+  } else {
+    // Niepoprawna próba — uruchom grę tego blinda
+    startBlind(blindIndex);
+  }
+  return correct;
+}
+
+// ---- Start blinda -------------------------------------------
+
+export function startBlind(blindIndex) {
+  gameState.blindIndex = blindIndex;
+  const blind = CATEGORIES[gameState.categoryIndex].blinds[blindIndex];
+  gameState.currentBlind = blind;
+  gameState.runningScore = 0;
+  gameState.playsLeft = 5;
+  gameState.playsUsedThisBlind = 0;
+  gameState.selectedIndices = [];
+  gameState.revealedLetters = new Set();
+  gameState.categoryStreak = 0;
+  gameState._figureState = {};
+
+  // Hooki onBlindStart (hiperbola, litotes, inicjal, bezblednik)
+  applyFigureHooks(gameState.activeFigures, 'onBlindStart', gameState);
+
+  gameState.phase = 'game';
+  emitter.emit('blindStarted', { blind, state: gameState });
+}
+
+// ---- Zaznaczanie/odznaczanie liter --------------------------
+
+export function toggleLetter(index) {
+  if (gameState.phase !== 'game') return;
+  const sel = gameState.selectedIndices;
+  const pos = sel.indexOf(index);
+  if (pos === -1) {
+    sel.push(index);
+  } else {
+    sel.splice(pos, 1);
+  }
+  emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
+}
+
+// ---- Zagranie słowa -----------------------------------------
+
+export function playWord() {
+  if (gameState.phase !== 'game') return;
+  const { selectedIndices, hand, currentBlind, currentCategory, activeFigures } = gameState;
+
+  if (selectedIndices.length < 2) {
+    emitter.emit('wordRejected', { reason: 'too_short' });
     return;
   }
 
-  gameState.usedWordIds.push(wordEntry.id);
+  const wordLetters = selectedIndices.map(i => hand[i]);
+  const word = wordLetters.join('');
 
-  // Inicjalizacja stanu rundy
-  gameState.word = wordEntry.word.toUpperCase();
-  gameState.hint = wordEntry.hint || '';
-  gameState.category = wordEntry.category || '';
-  gameState.definition = wordEntry.definition || '';
-  gameState.revealed = new Array(gameState.word.length).fill(false);
-  gameState.usedLetters = {};
-  gameState.errors = 0;
-  gameState.bezblednikUsed = false;
-  gameState.multiplier = 1.0;
-  gameState.basePoints = 0;
-  gameState.roundScore = 0;
-  gameState.combo = 0;
-  gameState.comboBeforeLastMiss = 0;
-  gameState.timeLeft = getBaseTime();
-  gameState.phase = 'guessing';
+  // Walidacja słownikowa
+  if (!isValidWord(word)) {
+    // Bezbłędnik: pierwsze niepoprawne słowo nie kosztuje zagrania
+    if (
+      activeFigures.includes('bezblednik') &&
+      !gameState._figureState.bezblednikUsed
+    ) {
+      gameState._figureState.bezblednikUsed = true;
+      emitter.emit('wordRejected', { reason: 'invalid', bezblednik: true });
+      gameState.selectedIndices = [];
+      emitter.emit('selectionChanged', { selectedIndices: [] });
+      return;
+    }
+    // Normalne odrzucenie (nie kosztuje zagrania)
+    emitter.emit('wordRejected', { reason: 'invalid' });
+    gameState.selectedIndices = [];
+    emitter.emit('selectionChanged', { selectedIndices: [] });
+    return;
+  }
 
-  // Zastosuj hooki onRoundStart (Hiperbola, Litotes, Inicjał)
-  applyFigureHooks(gameState.activeFigures, 'onRoundStart', gameState);
-
-  // Emituj stan wstępny dla UI
-  emitter.emit('roundStarted', { state: gameState, wordEntry });
-
-  // Uruchom timer
-  currentTimer = createTimer(
-    gameState.timeLeft,
-    (timeLeft) => {
-      gameState.timeLeft = timeLeft;
-      emitter.emit('timerTick', { timeLeft });
-    },
-    () => {
-      if (gameState.phase === 'guessing') endRound('timeout');
+  // Oblicz wynik
+  const komboBonus =
+    activeFigures.includes('kombo') && gameState.categoryStreak >= 2;
+  const result = scoreWord(
+    word,
+    currentCategory.id,
+    currentCategory.words,
+    activeFigures,
+    {
+      emfazaActive: gameState._figureState.emfazaActive,
+      komboBonus,
     }
   );
-  currentTimer.start();
-  gameState.timerRunning = true;
-}
 
-function getBaseTime() {
-  const baseTimes = { normal: 60, hard: 50, insane: 40 };
-  const base = baseTimes[gameState.difficultyMode] ?? 60;
-  return Math.max(20, base - (gameState.ante - 1) * 10);
-}
+  // Reset emfazy
+  gameState._figureState.emfazaActive = false;
 
-// ---- Obsługa litery ----------------------------------------
-
-export function handleLetterGuess(letter) {
-  if (gameState.phase !== 'guessing') return;
-  const l = letter.toUpperCase();
-  if (gameState.usedLetters[l]) return;
-
-  gameState.usedLetters[l] = true;
-
-  // Sprawdź, czy litera jest w słowie
-  const positions = [];
-  for (let i = 0; i < gameState.word.length; i++) {
-    if (gameState.word[i] === l) positions.push(i);
-  }
-
-  if (positions.length > 0) {
-    // Trafienie
-    positions.forEach(i => { gameState.revealed[i] = true; });
-
-    const result = calculateHit(l, gameState, gameState.activeFigures);
-
-    gameState.basePoints += result.points;
-    gameState.multiplier = result.multiplier;
-    gameState.combo = result.combo;
-    gameState.ink += result.inkGain;
-
-    if (gameState.combo > gameState.maxComboThisRun) {
-      gameState.maxComboThisRun = gameState.combo;
-    }
-
-    emitter.emit('letterHit', {
-      letter: l,
-      points: result.points,
-      positions,
-      multiplier: gameState.multiplier,
-      combo: gameState.combo,
-      ink: gameState.ink,
-    });
-
-    if (isWordComplete()) {
-      endRound('guessed');
-    }
+  // Aktualizuj kombo kategorialne
+  if (result.categoryBonus > 0) {
+    gameState.categoryStreak += 1;
   } else {
-    // Pudło
-    const missResult = calculateMiss(gameState, gameState.activeFigures);
+    gameState.categoryStreak = 0;
+  }
 
-    if (missResult.shouldCancel) {
-      gameState.bezblednikUsed = true;
-      emitter.emit('letterMissCancelled', { letter: l });
-    } else {
-      gameState.comboBeforeLastMiss = gameState.combo;
-      gameState.combo = 0;
-      gameState.errors++;
+  gameState.runningScore += result.score;
+  gameState.playsLeft -= 1;
+  gameState.playsUsedThisBlind += 1;
 
-      emitter.emit('letterMiss', {
-        letter: l,
-        errors: gameState.errors,
-        combo: gameState.combo,
-      });
+  // Skryba: +2 atramenty za słowo
+  if (activeFigures.includes('skryba')) {
+    gameState.ink += 2;
+  }
 
-      if (gameState.errors >= 6) {
-        endRound('maxErrors');
-      }
-    }
+  // Uzupełnij rękę
+  const { hand: newHand, pool: newPool } = replenishHand(
+    hand, selectedIndices, gameState.letterPool
+  );
+  gameState.hand = newHand;
+  gameState.letterPool = newPool;
+  gameState.selectedIndices = [];
+
+  // Zapisz słowo do historii
+  gameState.wordsPlayedThisRun.push({ word, score: result.score, categoryBonus: result.categoryBonus > 0 });
+
+  // Odkryj litery proporcjonalnie
+  updateRevealedLetters();
+
+  emitter.emit('wordPlayed', { word, result, state: gameState });
+
+  // Sprawdź koniec blinda
+  if (gameState.runningScore >= currentBlind.targetScore) {
+    endBlind(true);
+  } else if (gameState.playsLeft <= 0) {
+    endBlind(false);
   }
 }
 
-// ---- Aktywacja figury jednorazowej -------------------------
+// Proporcjonalne odkrywanie liter docelowego słowa
+function updateRevealedLetters() {
+  const word = gameState.currentBlind?.word ?? '';
+  const progress = Math.min(1, gameState.runningScore / gameState.currentBlind.targetScore);
+  const toReveal = Math.floor(progress * word.length);
+  for (let i = 0; i < toReveal; i++) {
+    gameState.revealedLetters.add(i);
+  }
+}
 
-export function handleOneshot(figureId) {
-  if (gameState.phase !== 'guessing') return;
+// ---- Odrzucenie liter ---------------------------------------
+
+export function discardLetters() {
+  if (gameState.phase !== 'game') return;
+  if (gameState.discardsLeft <= 0) {
+    emitter.emit('discardFailed', { reason: 'no_discards' });
+    return;
+  }
+  if (gameState.selectedIndices.length === 0) {
+    emitter.emit('discardFailed', { reason: 'nothing_selected' });
+    return;
+  }
+
+  const { hand: newHand, pool: newPool } = replenishHand(
+    gameState.hand,
+    gameState.selectedIndices,
+    gameState.letterPool
+  );
+  gameState.hand = newHand;
+  gameState.letterPool = newPool;
+  gameState.selectedIndices = [];
+  gameState.discardsLeft -= 1;
+
+  emitter.emit('lettersDiscarded', { state: gameState });
+  emitter.emit('selectionChanged', { selectedIndices: [] });
+}
+
+// ---- Użycie figury jednorazowej -----------------------------
+
+export function useOneshotFigure(figureId) {
+  if (gameState.phase !== 'game') return;
   const idx = gameState.handFigures.indexOf(figureId);
   if (idx === -1) return;
 
-  const success = activateFigure(figureId, gameState);
-  if (success) {
-    gameState.handFigures.splice(idx, 1);
-    emitter.emit('oneshotActivated', { figureId, state: gameState });
-  }
+  const fig = FIGURES[figureId];
+  if (!fig?.hooks?.onUse) return;
+
+  const result = fig.hooks.onUse(gameState);
+  gameState.handFigures.splice(idx, 1);
+
+  emitter.emit('oneshotUsed', { figureId, result, state: gameState });
 }
 
-// ---- Obsługa zdarzenia revealRarest (Synekdocha) ----------
+// ---- Koniec blinda ------------------------------------------
 
-emitter.on('revealRarest', ({ state }) => {
-  const LETTER_POINTS = {
-    A: 20, E: 20, I: 20, O: 20, U: 20,
-    N: 30, S: 30, T: 30, R: 30, L: 30,
-    W: 40, K: 40, D: 40, P: 40, M: 40,
-    G: 55, B: 55, H: 55, F: 55, J: 55, C: 55,
-    Ą: 70, Ć: 70, Ę: 70, Ł: 70, Ń: 70, Ó: 70, Ś: 70, Ź: 70, Ż: 70,
-    Z: 45, V: 60, X: 60, Y: 35, Q: 60,
-  };
+function endBlind(won) {
+  gameState.phase = 'summary';
 
-  const hidden = [];
-  for (let i = 0; i < state.word.length; i++) {
-    if (!state.revealed[i]) hidden.push({ i, letter: state.word[i] });
+  // Atrament za wygranie
+  let inkReward = 0;
+  if (won) {
+    inkReward = calcInkReward(gameState.playsUsedThisBlind, 5, true);
+    // Hook perfekcjonista
+    inkReward = applyFigureHooks(
+      gameState.activeFigures,
+      'onBlindEnd',
+      { ...gameState, won },
+      inkReward
+    );
+    gameState.ink += inkReward;
+    gameState.totalScore += gameState.runningScore;
+
+    gameState.completedBlinds.push({
+      categoryId: gameState.currentCategory.id,
+      blindId: gameState.currentBlind.id,
+      skipped: false,
+      score: gameState.runningScore,
+    });
   }
-  if (hidden.length === 0) return;
 
-  hidden.sort((a, b) =>
-    (LETTER_POINTS[b.letter] ?? 30) - (LETTER_POINTS[a.letter] ?? 30)
-  );
+  gameState._summaryWon = won;
+  emitter.emit('blindEnded', { won, inkReward, score: gameState.runningScore, state: gameState });
 
-  const { i, letter } = hidden[0];
-  state.revealed[i] = true;
-  state.usedLetters[letter] = true;
-
-  emitter.emit('letterHit', {
-    letter,
-    points: 0, // za darmo — bez punktów
-    positions: [i],
-    multiplier: state.multiplier,
-    combo: state.combo,
-    ink: state.ink,
-  });
-
-  if (isWordComplete()) endRound('guessed');
-});
-
-// ---- Sprawdzenie kompletności słowa ------------------------
-
-function isWordComplete() {
-  return gameState.revealed.every(Boolean);
+  // Dalszy flow obsługuje btn-summary-continue w main.js
 }
 
-// ---- Koniec rundy ------------------------------------------
-
-export function endRound(reason) {
-  if (gameState.phase !== 'guessing') return;
-  gameState.phase = 'result';
-
-  if (currentTimer) {
-    currentTimer.stop();
-    gameState.timerRunning = false;
-  }
-
-  const guessed = reason === 'guessed';
-
-  // Bonus za czas
-  const timeBonus = guessed ? calculateTimeBonus(gameState.timeLeft) : 0;
-
-  // Wynik rundy przed mnożnikiem i modyfikatorami figur
-  gameState.roundScore = Math.floor(gameState.basePoints * gameState.multiplier) + timeBonus;
-
-  // Hook onRoundEnd (Perfekcjonista)
-  applyFigureHooks(gameState.activeFigures, 'onRoundEnd', gameState);
-
-  // Atrament
-  const inkReward = calculateInkReward(gameState.basePoints, guessed);
-  gameState.ink += inkReward;
-
-  // Aktualizacja statystyk
-  gameState.totalScore += gameState.roundScore;
-  gameState.score = gameState.totalScore;
-
-  if (guessed) {
-    gameState.wordsGuessed++;
-  } else {
-    gameState.wordsFailed++;
-  }
-
-  emitter.emit('roundEnded', {
-    state: gameState,
-    reason,
-    roundScore: gameState.roundScore,
-    inkReward,
-    timeBonus,
-  });
-}
-
-// ---- Następna runda ----------------------------------------
-
-export function nextRound() {
-  // Sprawdź koniec gry
-  if (gameState.round >= gameState.maxRounds) {
-    endGame();
-    return;
-  }
-
-  gameState.round++;
-
-  // Sprawdź ante (co 3 rundy)
-  const newAnte = Math.floor((gameState.round - 1) / 3) + 1;
-  const anteChanged = newAnte > gameState.ante;
-  gameState.ante = newAnte;
-
-  if (anteChanged) {
-    gameState.phase = 'ante';
-    emitter.emit('anteChanged', { ante: gameState.ante, state: gameState });
-  } else {
-    gameState.phase = 'figure-pick';
-    emitter.emit('figurePick', { state: gameState });
-  }
-}
-
-// ---- Scriptorium -------------------------------------------
-
-export function openScriptorium() {
-  gameState.phase = 'scriptorium';
-  emitter.emit('scriptoriumOpen', { state: gameState });
-}
-
+// Po zamknięciu Scriptorium
 export function closeScriptorium() {
-  gameState.phase = 'figure-pick';
-  emitter.emit('figurePick', { state: gameState });
+  advanceAfterBlind(false);
 }
 
-// ---- Koniec gry --------------------------------------------
+function advanceAfterBlind(skipped) {
+  const category = CATEGORIES[gameState.categoryIndex];
+  const nextBlindIndex = gameState.blindIndex + 1;
 
-export function endGame() {
-  if (currentTimer) currentTimer.stop();
-  gameState.phase = 'game-over';
+  if (nextBlindIndex < category.blinds.length) {
+    // Następny blind w tej kategorii
+    gameState.blindIndex = nextBlindIndex;
+    gameState.phase = 'blind-select';
+    gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
+    emitter.emit('nextBlind', { state: gameState });
+  } else {
+    // Kategoria ukończona
+    const nextCategoryIndex = gameState.categoryIndex + 1;
+    if (nextCategoryIndex < CATEGORIES.length) {
+      gameState.categoryIndex = nextCategoryIndex;
+      gameState.blindIndex = 0;
+      gameState.discardsLeft = 3;
+      gameState.phase = 'map';
+      emitter.emit('categoryCompleted', { state: gameState });
+    } else {
+      endGame(true);
+    }
+  }
+}
 
-  // Zapisz highscore
+// ---- Koniec gry ---------------------------------------------
+
+export function endGame(victory) {
+  gameState.phase = victory ? 'victory' : 'defeat';
+
   if (gameState.totalScore > gameState.highScore) {
     gameState.highScore = gameState.totalScore;
-    localStorage.setItem('zgadka_highscore', String(gameState.totalScore));
+    localStorage.setItem('litero_highscore', String(gameState.totalScore));
   }
 
-  // Zapisz statystyki
-  const prevStats = JSON.parse(localStorage.getItem('zgadka_stats') || '{}');
-  const newStats = {
-    gamesPlayed: (prevStats.gamesPlayed || 0) + 1,
-    totalWords: (prevStats.totalWords || 0) + gameState.wordsGuessed,
-    bestCombo: Math.max(prevStats.bestCombo || 0, gameState.maxComboThisRun),
-  };
-  localStorage.setItem('zgadka_stats', JSON.stringify(newStats));
-
-  emitter.emit('gameOver', { state: gameState });
+  emitter.emit('gameOver', { victory, state: gameState });
 }
 
-// ---- Figury — dodawanie/usuwanie --------------------------
+// ---- Figury: dodawanie/usuwanie (używane przez Scriptorium) --
 
 export function addFigure(figureId) {
   const fig = FIGURES[figureId];
@@ -399,7 +407,43 @@ export function removeFigure(figureId) {
   const idx = gameState.activeFigures.indexOf(figureId);
   if (idx !== -1) {
     gameState.activeFigures.splice(idx, 1);
+    gameState.ink += getFigureSellValue(figureId);
     return true;
   }
   return false;
+}
+
+// ---- Wybór figury przed blindem -----------------------------
+
+export function pickFigure(figureId) {
+  const success = addFigure(figureId);
+  if (success) {
+    emitter.emit('figurePicked', { figureId, state: gameState });
+  }
+  return success;
+}
+
+export function skipFigurePick() {
+  gameState.ink += 2;
+  emitter.emit('figurePickSkipped', { state: gameState });
+}
+
+// ---- Helpers ------------------------------------------------
+
+function anteTier() {
+  return Math.floor(gameState.categoryIndex / 2) + 1;
+}
+
+function randomTag() {
+  const tags = [
+    { id: 'ink3',     label: '+3 atrament',          apply: s => { s.ink += 3; } },
+    { id: 'play1',    label: '+1 zagranie (next)',    apply: s => { s._pendingExtraPlay = (s._pendingExtraPlay||0)+1; } },
+    { id: 'discard1', label: '+1 odrzucenie',         apply: s => { s.discardsLeft += 1; } },
+    { id: 'mult15',   label: 'Mnożnik startuje od ×1.5 (next)', apply: s => { s._pendingMult15 = true; } },
+  ];
+  return tags[Math.floor(Math.random() * tags.length)];
+}
+
+function applyTag(tag) {
+  tag.apply(gameState);
 }

@@ -1,99 +1,108 @@
-// src/scoring.js — system punktów, mnożniki, atrament
+// src/scoring.js — system punktacji Litery × Mnożnik (jak Chips × Mult w Balatro)
 
-// ---- Tabela punktów per litera ----------------------------
-
-const LETTER_POINTS = {
-  // Samogłoski
-  A: 20, E: 20, I: 20, O: 20, U: 20,
-  // Popularne spółgłoski
-  N: 30, S: 30, T: 30, R: 30, L: 30,
-  // Rzadkie spółgłoski
-  W: 40, K: 40, D: 40, P: 40, M: 40,
-  // Bardzo rzadkie
-  G: 55, B: 55, H: 55, F: 55, J: 55, C: 55,
-  // Polskie znaki
-  Ą: 70, Ć: 70, Ę: 70, Ł: 70, Ń: 70, Ó: 70, Ś: 70, Ź: 70, Ż: 70,
-  // Pozostałe (V, X, Q, Z - rzadkie w polskim)
-  Z: 45, V: 60, X: 60, Y: 35, Q: 60,
+// Wartości liter (inspirowane polskim Scrabble)
+export const LETTER_VALUES = {
+  A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, S: 1,
+  C: 2, D: 2, K: 2, L: 2, M: 2, P: 2, T: 2, W: 2, Y: 2, Z: 2,
+  B: 3, F: 3, G: 3, H: 3, J: 3, Ł: 3, Ó: 3, U: 3,
+  Ą: 5, Ć: 5, Ę: 5, Ń: 5, Ś: 5, Ź: 5, Ż: 5,
+  // rzadkie
+  V: 4, X: 4, Q: 4,
 };
 
-const POLISH_CHARS = new Set(['Ą', 'Ć', 'Ę', 'Ł', 'Ń', 'Ó', 'Ś', 'Ź', 'Ż']);
+// Tiery długości słów (jak układy pokerowe)
+// { chipsMultiplier, multBonus, name }
+export const WORD_TIERS = [
+  { minLen: 2, maxLen: 2, chipsMultiplier: 1.0, multBonus: 0,  name: 'Para',         color: '#6b7280' },
+  { minLen: 3, maxLen: 3, chipsMultiplier: 1.0, multBonus: 1,  name: 'Trójka',       color: '#3b82f6' },
+  { minLen: 4, maxLen: 4, chipsMultiplier: 1.0, multBonus: 2,  name: 'Czwórka',      color: '#8b5cf6' },
+  { minLen: 5, maxLen: 5, chipsMultiplier: 1.5, multBonus: 3,  name: 'Pięciorak',    color: '#f59e0b' },
+  { minLen: 6, maxLen: 6, chipsMultiplier: 2.0, multBonus: 5,  name: 'Szesciorak',   color: '#f97316' },
+  { minLen: 7, maxLen: 7, chipsMultiplier: 2.5, multBonus: 8,  name: 'Siedmiorak',   color: '#ef4444' },
+  { minLen: 8, maxLen: 8, chipsMultiplier: 3.0, multBonus: 12, name: 'Ósemka',       color: '#ec4899' },
+];
 
-export function isPolishChar(letter) {
-  return POLISH_CHARS.has(letter.toUpperCase());
+export function getTier(wordLength) {
+  return WORD_TIERS.find(t => wordLength >= t.minLen && wordLength <= t.maxLen)
+    || WORD_TIERS[0];
 }
 
-export function getLetterPoints(letter) {
-  return LETTER_POINTS[letter.toUpperCase()] ?? 30;
+export function getLetterValue(letter) {
+  return LETTER_VALUES[letter.toUpperCase()] ?? 1;
 }
 
-// ---- Obliczenie trafienia ----------------------------------
-// Zwraca: { basePoints, multiplier, combo, inkGain }
+/**
+ * Oblicz wynik zagrania słowa.
+ * @param {string} word - zagrane słowo (uppercase lub lowercase)
+ * @param {string} categoryId - ID aktualnej kategorii
+ * @param {string[]} categoryWords - lista słów powiązanych z kategorią
+ * @param {string[]} activeFigures - ID aktywnych figur
+ * @param {object} figureState - dodatkowy stan figur (np. emfaza)
+ * @returns {{ chips, mult, score, tier, categoryBonus, figureBonus }}
+ */
+export function scoreWord(word, categoryId, categoryWords, activeFigures = [], figureState = {}) {
+  const letters = word.toUpperCase().split('');
+  const tier = getTier(letters.length);
 
-export function calculateHit(letter, state, activeFigures) {
-  let points = getLetterPoints(letter);
-  const word = state.word;
+  // ---- Chips (litery) ----------------------------------------
+  let chips = 0;
+  for (const letter of letters) {
+    let val = getLetterValue(letter);
 
-  // Aliteracja: litera powtarza się w słowie
-  if (activeFigures.includes('aliteracja')) {
-    const count = [...word].filter(c => c === letter).length;
-    if (count > 1) points *= 2;
+    // Aliteracja: powtarzająca się litera w słowie warta 2×
+    if (activeFigures.includes('aliteracja')) {
+      const count = letters.filter(l => l === letter).length;
+      if (count > 1) val *= 2;
+    }
+
+    chips += val;
   }
 
-  // Polonizm: polskie znaki warte 3×
-  if (activeFigures.includes('polonizm') && isPolishChar(letter)) {
-    points *= 3;
+  chips = Math.floor(chips * tier.chipsMultiplier);
+
+  // ---- Mnożnik -----------------------------------------------
+  let mult = 1 + tier.multBonus;
+
+  // Bonus kategorii: słowo należy do listy słów kategorii
+  let categoryBonus = 0;
+  if (categoryWords.some(w => w.toLowerCase() === word.toLowerCase())) {
+    categoryBonus = 3;
+    mult += categoryBonus;
   }
 
-  // Aktualizacja combo
-  const newCombo = state.combo + 1;
-
-  // Mnożnik: każde trafienie +0.1
-  let newMultiplier = parseFloat((state.multiplier + 0.1).toFixed(2));
-
-  // Bonus za combo ≥ 3
-  let comboBonus = 0;
-  if (newCombo >= 3 && newCombo % 3 === 0) {
-    // Kombo figura: +0.5, domyślnie +0.3
-    comboBonus = activeFigures.includes('kombo') ? 0.5 : 0.3;
-    newMultiplier = parseFloat((newMultiplier + comboBonus).toFixed(2));
+  // Polonizm: każda polska litera dodaje +2 mult
+  let figureBonus = 0;
+  if (activeFigures.includes('polonizm')) {
+    const polishLetters = ['Ą','Ć','Ę','Ł','Ń','Ó','Ś','Ź','Ż'];
+    const polishCount = letters.filter(l => polishLetters.includes(l)).length;
+    figureBonus += polishCount * 2;
+    mult += polishCount * 2;
   }
 
-  // Skryba: +1 atrament za trafienie
-  let inkGain = 0;
-  if (activeFigures.includes('skryba')) {
-    inkGain = 1;
+  // Kombo: 3 kolejne słowa z kategorii → +5 mult (sprawdzane w game.js, tu dodajemy)
+  if (figureState.komboBonus) {
+    mult += 5;
+    figureBonus += 5;
   }
 
-  return {
-    points,
-    multiplier: newMultiplier,
-    combo: newCombo,
-    comboBonus,
-    inkGain,
-  };
+  // Emfaza: podwój mnożnik
+  if (figureState.emfazaActive) {
+    mult *= 2;
+  }
+
+  // Hiperbola: mnożnik startuje od ×2 (uwzględnione przez minMult w game.js)
+  if (activeFigures.includes('hiperbola') && mult < 2) {
+    mult = 2;
+  }
+
+  const score = Math.floor(chips * mult);
+
+  return { chips, mult, score, tier, categoryBonus, figureBonus };
 }
 
-// ---- Obliczenie pudeł -----------------------------------------------
-// Zwraca { shouldCancel } — jeśli Bezbłędnik pochłania błąd
-
-export function calculateMiss(state, activeFigures) {
-  // Bezbłędnik: pierwszy błąd w rundzie jest anulowany
-  if (activeFigures.includes('bezblednik') && state.errors === 0 && !state.bezblednikUsed) {
-    return { shouldCancel: true };
-  }
-  return { shouldCancel: false };
-}
-
-// ---- Atrament za rundę -------------------------------------
-
-export function calculateInkReward(basePoints, guessedCorrectly) {
-  if (!guessedCorrectly) return 0;
-  return 3 + Math.floor(basePoints / 100);
-}
-
-// ---- Bonus za czas -----------------------------------------
-
-export function calculateTimeBonus(timeLeft) {
-  return timeLeft * 5;
+// Oblicz nagrodę atramentu za wygrany blind
+export function calcInkReward(playsUsed, maxPlays, won) {
+  if (!won) return 0;
+  const remaining = maxPlays - playsUsed;
+  return 2 + remaining; // bazowo 2 + 1 za każde niezużyte zagranie
 }

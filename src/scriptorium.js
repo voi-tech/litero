@@ -1,176 +1,141 @@
-// src/scriptorium.js — ekran sklepu między rundami
+// src/scriptorium.js — ekran sklepu z figurami
 
 import { emitter } from './eventEmitter.js';
 import { gameState, addFigure, removeFigure, closeScriptorium } from './game.js';
-import { FIGURES, getRandomFigures, getFigureCost } from './figures.js';
-import { showToast, renderFigurePickScreen } from './ui.js';
+import { FIGURES, getFigureCost, getFigureSellValue } from './figures.js';
+import { buildFigureCardEl, showScreen } from './ui.js';
 
-// ---- Stan scriptorium --------------------------------------
+let shopOffer = [];
 
-let currentOffer = [];
+export function openScriptorium() {
+  // Generuj ofertę: 4 figury których gracz nie posiada (pasywne i jednorazowe)
+  const owned = new Set([...gameState.activeFigures, ...gameState.handFigures]);
+  const available = Object.values(FIGURES).filter(f => !owned.has(f.id));
+  shopOffer = pickRandom(available, 4);
 
-// ---- Inicjalizacja scriptorium -----------------------------
+  renderScriptorium();
+  showScreen('screen-scriptorium');
+}
 
-export function initScriptorium() {
-  emitter.on('scriptoriumOpen', ({ state }) => {
-    renderScriptorium(state);
+function pickRandom(arr, count) {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+export function renderScriptorium() {
+  renderInk();
+  renderShop();
+  renderActiveFigures();
+}
+
+function renderInk() {
+  const el = document.getElementById('scr-ink-value');
+  if (el) el.textContent = gameState.ink;
+}
+
+function renderShop() {
+  const grid = document.getElementById('scr-shop-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  shopOffer.forEach(fig => {
+    const cost = getFigureCost(fig.id, gameState.activeFigures);
+    const card = buildFigureCardEl(fig, cost, false);
+
+    const canAfford = gameState.ink >= cost;
+    const passiveFull = fig.type === 'passive' && gameState.activeFigures.length >= 5;
+    const alreadyOwns = gameState.activeFigures.includes(fig.id) || gameState.handFigures.includes(fig.id);
+
+    if (!canAfford || passiveFull || alreadyOwns) {
+      card.style.opacity = '0.45';
+      card.style.cursor = 'not-allowed';
+    } else {
+      card.addEventListener('click', () => {
+        buyFigure(fig.id, cost);
+      });
+    }
+
+    grid.appendChild(card);
   });
 }
 
-// ---- Renderowanie ------------------------------------------
+function renderActiveFigures() {
+  const grid = document.getElementById('scr-active-grid');
+  const countEl = document.getElementById('scr-active-count');
+  if (!grid) return;
 
-function renderScriptorium(state) {
-  const inkEl = document.getElementById('scriptorium-ink');
-  if (inkEl) inkEl.innerHTML = `${state.ink} <span class="ink-icon">✦</span>`;
+  grid.innerHTML = '';
+  if (countEl) countEl.textContent = gameState.activeFigures.length;
 
-  // Losuj ofertę (wyklucz już aktywne figury pasywne)
-  const excludePassive = state.activeFigures;
-  currentOffer = getRandomFigures(4, excludePassive, state.ante);
-
-  renderShop(state);
-  renderActiveList(state);
-
-  // Przycisk zamknij
-  const closeBtn = document.getElementById('btn-close-scriptorium');
-  if (closeBtn) {
-    closeBtn.onclick = () => onCloseScriptorium(state);
-  }
-}
-
-function renderShop(state) {
-  const shop = document.getElementById('scriptorium-shop');
-  if (!shop) return;
-  shop.innerHTML = '';
-
-  const discount = state.ante >= 2;
-
-  currentOffer.forEach(figId => {
+  // Pasywne figury (z opcją sprzedaży)
+  gameState.activeFigures.forEach(figId => {
     const fig = FIGURES[figId];
     if (!fig) return;
-    const cost = getFigureCost(figId, discount);
+    const sellVal = getFigureSellValue(figId);
+    const card = buildFigureCardEl(fig, sellVal, true);
+    card.classList.add('owned');
 
-    const card = document.createElement('div');
-    card.className = 'shop-card';
-    card.innerHTML = `
-      <div class="figure-icon">${fig.icon}</div>
-      <div class="shop-card-info">
-        <div class="shop-card-name">${fig.name}
-          <span class="figure-type-badge figure-type-badge--${fig.type}" style="margin-left:6px">
-            ${fig.type === 'passive' ? 'Pasywna' : 'Jednorazowa'}
-          </span>
-        </div>
-        <div class="shop-card-desc">${fig.description}</div>
-        ${discount ? `<div class="shop-card-cost" style="text-decoration:line-through;opacity:0.5">${fig.cost} ✦</div>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        <div class="shop-card-cost">${cost} ✦</div>
-        <button class="btn btn--buy" data-figure-id="${figId}" data-cost="${cost}">Kup</button>
-      </div>
-    `;
-
-    const buyBtn = card.querySelector('.btn--buy');
-    if (buyBtn) {
-      buyBtn.addEventListener('click', () => onBuyFigure(figId, cost, state, card, buyBtn));
+    const sellBtn = card.querySelector('.sell-btn');
+    if (sellBtn) {
+      sellBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sellFigure(figId);
+      });
     }
 
-    shop.appendChild(card);
+    grid.appendChild(card);
   });
 
-  if (currentOffer.length === 0) {
-    shop.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px">Brak dostępnych figur do zakupu.</p>';
-  }
-}
-
-function renderActiveList(state) {
-  const list = document.getElementById('scriptorium-active-list');
-  if (!list) return;
-  list.innerHTML = '';
-
-  if (state.activeFigures.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem">Nie masz żadnych aktywnych figur.</p>';
-    return;
-  }
-
-  state.activeFigures.forEach(id => {
-    const fig = FIGURES[id];
+  // Jednorazowe figury w ręce
+  gameState.handFigures.forEach(figId => {
+    const fig = FIGURES[figId];
     if (!fig) return;
+    const card = buildFigureCardEl(fig, 0, false);
+    card.classList.add('owned');
+    card.style.borderColor = 'var(--gold)';
 
-    const row = document.createElement('div');
-    row.className = 'active-figure-row';
-    row.innerHTML = `
-      <div>
-        <div class="active-figure-name">${fig.icon} ${fig.name}</div>
-        <div style="font-size:0.75rem;color:var(--text-muted)">${fig.description}</div>
-      </div>
-      <button class="btn btn--drop" data-figure-id="${id}">Porzuć (1 ✦)</button>
-    `;
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:.68rem;color:var(--gold);';
+    note.textContent = 'Jednorazowa';
+    card.appendChild(note);
 
-    const dropBtn = row.querySelector('.btn--drop');
-    if (dropBtn) {
-      dropBtn.addEventListener('click', () => onDropFigure(id, state, list));
-    }
-
-    list.appendChild(row);
+    grid.appendChild(card);
   });
+
+  if (gameState.activeFigures.length === 0 && gameState.handFigures.length === 0) {
+    const empty = document.createElement('p');
+    empty.style.cssText = 'color:var(--text-muted);font-size:.85rem;';
+    empty.textContent = 'Brak figur. Kup coś w sklepie!';
+    grid.appendChild(empty);
+  }
 }
 
-// ---- Akcje -------------------------------------------------
+function buyFigure(figureId, cost) {
+  if (gameState.ink < cost) return;
 
-function onBuyFigure(figId, cost, state, card, buyBtn) {
-  if (state.ink < cost) {
-    showToast('Za mało atramentu!');
-    card.style.animation = 'none';
-    card.offsetHeight;
-    card.style.animation = 'gridShake 0.4s ease-out';
-    return;
-  }
+  const fig = FIGURES[figureId];
+  if (!fig) return;
 
-  if (FIGURES[figId]?.type === 'passive' && state.activeFigures.length >= 5) {
-    showToast('Możesz mieć maksymalnie 5 aktywnych figur!');
-    return;
-  }
+  if (fig.type === 'passive' && gameState.activeFigures.length >= 5) return;
 
-  state.ink -= cost;
-  addFigure(figId);
+  gameState.ink -= cost;
+  addFigure(figureId);
+  emitter.emit('figureBought', { figureId, state: gameState });
 
-  // Aktualizuj UI
-  const inkEl = document.getElementById('scriptorium-ink');
-  if (inkEl) inkEl.innerHTML = `${state.ink} <span class="ink-icon">✦</span>`;
-
-  buyBtn.textContent = 'Kupiono!';
-  buyBtn.disabled = true;
-
-  // Odśwież listę aktywnych
-  renderActiveList(state);
-
-  // Usuń z oferty w UI
-  currentOffer = currentOffer.filter(id => id !== figId);
+  renderScriptorium();
 }
 
-function onDropFigure(figId, state, listEl) {
-  if (state.ink < 1) {
-    showToast('Potrzebujesz 1 ✦ atramentu, aby porzucić figurę!');
-    return;
+function sellFigure(figureId) {
+  const ok = removeFigure(figureId);
+  if (ok) {
+    emitter.emit('figureSold', { figureId, state: gameState });
+    renderScriptorium();
   }
-
-  state.ink -= 1;
-  removeFigure(figId);
-
-  const inkEl = document.getElementById('scriptorium-ink');
-  if (inkEl) inkEl.innerHTML = `${state.ink} <span class="ink-icon">✦</span>`;
-
-  // Dodaj porzuconą figurę z powrotem do oferty (jeśli pasywna)
-  if (FIGURES[figId]?.type === 'passive' && !currentOffer.includes(figId)) {
-    currentOffer.push(figId);
-    renderShop(state);
-  }
-
-  renderActiveList(state);
 }
 
-function onCloseScriptorium(state) {
-  currentOffer = [];
-  // Wyklucz już aktywne figury pasywne z oferty
-  state._figureOffer = getRandomFigures(3, state.activeFigures, state.ante);
-  closeScriptorium(); // emituje 'figurePick' -> ui.js renderuje ekran wyboru
+export function bindScriptoriumEvents() {
+  const closeBtn = document.getElementById('btn-scr-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => closeScriptorium();
+  }
 }

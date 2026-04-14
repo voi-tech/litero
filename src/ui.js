@@ -1,551 +1,464 @@
-// src/ui.js — renderowanie DOM i reakcje na emitter
+// src/ui.js — zarządzanie ekranami i renderowanie UI
 
 import { emitter } from './eventEmitter.js';
-import { gameState, handleLetterGuess, handleOneshot, startRound, addFigure, nextRound, openScriptorium } from './game.js';
-import { showScreen } from './main.js';
-import { FIGURES, getRandomFigures } from './figures.js';
+import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, pickFigure, skipFigurePick } from './game.js';
+import { FIGURES, getFigureCost } from './figures.js';
+import { LETTER_VALUES, getTier } from './scoring.js';
 
-// ---- Cache referencji DOM ----------------------------------
+// ---- Przełączanie ekranów -------------------------------------------
 
-const els = {};
+const screens = {};
+let currentScreen = null;
 
-function $(id) {
-  if (!els[id]) els[id] = document.getElementById(id);
-  return els[id];
-}
-
-// ---- Inicjalizacja UI --------------------------------------
-
-export function initUI() {
-  setupKeyboard();
-  setupEmitterHandlers();
-}
-
-// ---- Klawiatura ekranowa -----------------------------------
-
-function setupKeyboard() {
-  document.querySelectorAll('.keyboard-key').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const letter = e.currentTarget.dataset.letter;
-      if (letter) handleLetterGuess(letter);
-    });
+export function initScreens() {
+  document.querySelectorAll('.screen').forEach(el => {
+    screens[el.id] = el;
   });
+}
 
-  // Klawiatura fizyczna
-  document.addEventListener('keydown', (e) => {
-    if (gameState.phase !== 'guessing') return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+export function showScreen(id) {
+  if (currentScreen) currentScreen.classList.remove('active');
+  currentScreen = screens[id];
+  if (currentScreen) currentScreen.classList.add('active');
+  window.scrollTo(0, 0);
+}
 
-    const key = e.key;
-    if (key.length === 1) {
-      const letter = key.toUpperCase();
-      if (/^[A-ZĄĆĘŁŃÓŚŹŻ]$/.test(letter)) {
-        e.preventDefault();
-        handleLetterGuess(letter);
+// ---- Ekran start ----------------------------------------------------
+
+export function renderStartScreen() {
+  const hs = document.getElementById('hs-value');
+  if (hs) hs.textContent = gameState.highScore.toLocaleString('pl');
+}
+
+// ---- Ekran mapa -----------------------------------------------------
+
+export function renderMapScreen() {
+  const container = document.getElementById('category-map');
+  const inkEl = document.getElementById('map-ink-value');
+  if (inkEl) inkEl.textContent = gameState.ink;
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  const completedIds = new Set(
+    gameState.completedBlinds
+      .filter(b => {
+        // kategoria ukończona jeśli wszystkie 3 blindy ukończone lub pominięte
+        const catBlinds = gameState.completedBlinds.filter(x => x.categoryId === b.categoryId);
+        const cat = CATEGORIES.find(c => c.id === b.categoryId);
+        return cat && catBlinds.length >= cat.blinds.length;
+      })
+      .map(b => b.categoryId)
+  );
+
+  CATEGORIES.forEach((cat, idx) => {
+    const isCompleted = completedIds.has(cat.id);
+    const isActive = idx === gameState.categoryIndex && !isCompleted;
+    const isLocked = idx > gameState.categoryIndex;
+
+    let status = 'locked';
+    if (isCompleted) status = 'completed';
+    else if (isActive || idx < gameState.categoryIndex) status = 'available';
+
+    const card = document.createElement('div');
+    card.className = `category-card ${status}`;
+    card.innerHTML = `
+      <div class="category-card__icon">${cat.icon}</div>
+      <div class="category-card__name">${cat.name}</div>
+      <div class="category-card__status">${
+        isCompleted ? 'Ukończona' :
+        isActive    ? 'Aktywna'  :
+        isLocked    ? 'Zablokowana' : 'Dostępna'
+      }</div>
+    `;
+
+    if (status === 'available') {
+      card.addEventListener('click', () => {
+        enterCategory(idx);
+      });
+    }
+
+    container.appendChild(card);
+  });
+}
+
+// ---- Ekran wyboru blinda -------------------------------------------
+
+export function renderBlindSelectScreen() {
+  const cat = gameState.currentCategory;
+  const inkEl = document.getElementById('bs-ink-value');
+  if (inkEl) inkEl.textContent = gameState.ink;
+
+  const nameEl = document.getElementById('bs-category-name');
+  if (nameEl) nameEl.textContent = `${cat.icon} ${cat.name}`;
+
+  const discardsEl = document.getElementById('bs-discards-info');
+  if (discardsEl) discardsEl.textContent = `Odrzucenia w kategorii: ${gameState.discardsLeft}/3`;
+
+  renderBlindCards();
+  renderFigureOffer();
+}
+
+function renderBlindCards() {
+  const container = document.getElementById('blind-cards');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const cat = gameState.currentCategory;
+  const completedInCat = new Set(
+    gameState.completedBlinds
+      .filter(b => b.categoryId === cat.id)
+      .map(b => b.blindId)
+  );
+
+  cat.blinds.forEach((blind, idx) => {
+    const isDone = completedInCat.has(blind.id);
+    const isCurrent = idx === gameState.blindIndex && !isDone;
+
+    const card = document.createElement('div');
+    card.className = `blind-card${isCurrent ? ' active-blind' : ''}${isDone ? ' done-blind' : ''}`;
+
+    card.innerHTML = `
+      <div class="blind-card__header">
+        <span class="blind-type-badge ${blind.type}">${
+          blind.type === 'small' ? 'Mały' : blind.type === 'big' ? 'Duży' : 'Boss'
+        }</span>
+        <span class="blind-card__target">Cel: ${blind.targetScore} pkt</span>
+      </div>
+      <div class="blind-card__word">${blind.word}</div>
+      <div class="blind-card__definition">${blind.definition}</div>
+      ${isCurrent ? `
+        <div class="skip-form">
+          <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
+          <button class="btn btn--primary btn--sm">Pomiń</button>
+        </div>
+        <div class="skip-feedback"></div>
+        <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj blind</button>
+      ` : ''}
+    `;
+
+    if (isCurrent) {
+      const input = card.querySelector('.skip-input');
+      const skipBtn = card.querySelector('.btn--primary');
+      const playBtn = card.querySelector('.btn--ghost');
+      const feedback = card.querySelector('.skip-feedback');
+
+      skipBtn.addEventListener('click', () => {
+        const attempt = input.value;
+        const ok = trySkipBlind(idx, attempt);
+        if (!ok) {
+          feedback.textContent = 'Niepoprawnie — zaczynamy grę!';
+          feedback.className = 'skip-feedback err';
+        }
+      });
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') skipBtn.click();
+      });
+
+      playBtn.addEventListener('click', () => startBlind(idx));
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function renderFigureOffer() {
+  const offer = gameState._figureOffer || [];
+  const cardsEl = document.getElementById('figure-offer-cards');
+  if (!cardsEl) return;
+  cardsEl.innerHTML = '';
+
+  offer.forEach(fig => {
+    const cost = getFigureCostDisplay(fig.id);
+    const card = buildFigureCardEl(fig, cost, false);
+    card.addEventListener('click', () => {
+      if (gameState.ink >= cost) {
+        gameState.ink -= cost;
+        pickFigure(fig.id);
+        renderBlindSelectScreen();
       }
-    }
+    });
+    cardsEl.appendChild(card);
   });
 }
 
-// ---- Obsługa eventów gry -----------------------------------
-
-function setupEmitterHandlers() {
-  emitter.on('roundStarted', ({ state }) => {
-    renderGameScreen(state);
-  });
-
-  emitter.on('definitionLoaded', ({ definition }) => {
-    const defEl = $('definition-text');
-    if (defEl) {
-      defEl.textContent = definition;
-    }
-  });
-
-  emitter.on('letterHit', ({ letter, positions, multiplier, combo, ink }) => {
-    positions.forEach(i => animateCellHit(i));
-    markKeyUsed(letter, 'hit');
-    updateMultiplierDisplay(multiplier);
-    updateComboDisplay(combo);
-    updateInkDisplay(ink);
-    updateScoreDisplay();
-  });
-
-  emitter.on('letterMiss', ({ letter, errors, combo }) => {
-    markKeyUsed(letter, 'miss');
-    updateErrorMarkers(errors);
-    updateComboDisplay(combo);
-    shakeWordGrid();
-  });
-
-  emitter.on('letterMissCancelled', ({ letter }) => {
-    // Bezbłędnik pochłonął błąd - subtelna informacja
-    markKeyUsed(letter, 'miss');
-    shakeWordGrid();
-    showToast('Bezbłędnik ochronił cię!');
-  });
-
-  emitter.on('timerTick', ({ timeLeft }) => {
-    renderTimer(timeLeft, gameState.timeLeft);
-    $('timer-value').textContent = timeLeft;
-
-    const wrapper = $('timer-wrapper');
-    if (timeLeft <= 10) {
-      wrapper.classList.add('timer-wrapper--urgent');
-    } else {
-      wrapper.classList.remove('timer-wrapper--urgent');
-    }
-  });
-
-  emitter.on('roundEnded', ({ state, reason, roundScore, inkReward, timeBonus }) => {
-    showRoundSummary(state, reason, roundScore, inkReward, timeBonus);
-  });
-
-  emitter.on('oneshotActivated', ({ figureId, state }) => {
-    renderHandFigures(state.handFigures);
-    // Odśwież odsłonięte litery (Synekdocha / Akrostych mogły odsłonić kratki)
-    renderWordGrid(state.word, state.revealed);
-    updateMultiplierDisplay(state.multiplier);
-  });
-
-  emitter.on('figurePick', ({ state }) => {
-    renderFigurePickScreen(state);
-    showScreen('screen-figure-pick');
-  });
-
-  emitter.on('anteChanged', ({ ante, state }) => {
-    renderAnteScreen(ante);
-    showScreen('screen-ante');
-  });
-
-  emitter.on('scriptoriumOpen', ({ state }) => {
-    showScreen('screen-scriptorium');
-  });
-
-  emitter.on('gameOver', ({ state }) => {
-    renderGameOver(state);
-    showScreen('screen-game-over');
-  });
+function getFigureCostDisplay(figureId) {
+  return getFigureCost(figureId, gameState.activeFigures);
 }
 
-// ---- Renderowanie ekranu gry --------------------------------
+// ---- Ekran gry -------------------------------------------------------
 
-function renderGameScreen(state) {
-  // Nagłówek
-  $('game-round').textContent = `${state.round}/${state.maxRounds}`;
-  $('game-score').textContent = state.score.toLocaleString('pl-PL');
-  $('game-ink').innerHTML = `${state.ink} <span class="ink-icon">✦</span>`;
+export function renderGameScreen() {
+  updateGameHeader();
+  renderTargetWord();
+  renderHand();
+  renderPlaysIndicator();
+  renderHandFigures();
+  updateWordPreview();
+}
 
-  // Mnożnik i combo
-  updateMultiplierDisplay(state.multiplier);
-  updateComboDisplay(state.combo);
+function updateGameHeader() {
+  const blind = gameState.currentBlind;
+  setEl('g-blind-name', blind?.word ?? '');
+  setEl('g-score', gameState.runningScore.toLocaleString('pl'));
+  setEl('g-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
+  setEl('g-ink', gameState.ink);
+  setEl('g-discards', gameState.discardsLeft);
 
-  // Definicja
-  const defEl = $('definition-text');
-  const catEl = $('def-category');
-  const hintEl = $('def-hint');
-
-  if (defEl) defEl.textContent = state.definition || '';
-  if (catEl) catEl.textContent = state.category || '';
-  if (hintEl) hintEl.textContent = state.hint || '';
-
-  // Siatka słowa
-  renderWordGrid(state.word, state.revealed);
-
-  // Błędy
-  updateErrorMarkers(state.errors);
-  $('errors-label').textContent = `${state.errors}/6 błędów`;
-
-  // Klawiatura — reset
-  resetKeyboard();
-
-  // Figury pasywne
-  renderActiveFigures(state.activeFigures);
-
-  // Figury w ręce
-  renderHandFigures(state.handFigures);
-
-  // Timer
-  const circumference = 2 * Math.PI * 18; // r=18
-  const ring = $('timer-ring-fg');
-  if (ring) {
-    ring.setAttribute('stroke-dasharray', circumference.toFixed(1));
-    ring.setAttribute('stroke-dashoffset', '0');
+  const fill = document.getElementById('g-progress-fill');
+  if (fill && blind) {
+    const pct = Math.min(100, (gameState.runningScore / blind.targetScore) * 100);
+    fill.style.width = pct + '%';
   }
-  $('timer-value').textContent = state.timeLeft;
-  $('timer-wrapper').classList.remove('timer-wrapper--urgent');
 
-  showScreen('screen-game');
+  setEl('g-definition', blind?.definition ?? '');
 }
 
-// ---- Siatka słowa ------------------------------------------
+function renderTargetWord() {
+  const container = document.getElementById('target-word');
+  if (!container || !gameState.currentBlind) return;
 
-function renderWordGrid(word, revealed) {
-  const grid = $('word-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
+  const word = gameState.currentBlind.word.toUpperCase();
+  container.innerHTML = '';
 
   for (let i = 0; i < word.length; i++) {
-    const cell = document.createElement('div');
-
-    if (word[i] === ' ') {
-      cell.className = 'letter-cell letter-cell--space';
-    } else {
-      cell.className = revealed[i] ? 'letter-cell letter-cell--hit' : 'letter-cell';
-      cell.textContent = revealed[i] ? word[i] : '';
-      cell.dataset.index = i;
-    }
-
-    grid.appendChild(cell);
+    const tile = document.createElement('div');
+    tile.className = 'target-tile' + (gameState.revealedLetters.has(i) ? ' revealed' : '');
+    tile.textContent = gameState.revealedLetters.has(i) ? word[i] : '_';
+    container.appendChild(tile);
   }
 }
 
-// ---- Animacja trafienia ------------------------------------
+export function renderHand() {
+  const container = document.getElementById('hand');
+  if (!container) return;
+  container.innerHTML = '';
 
-function animateCellHit(index) {
-  const grid = $('word-grid');
-  if (!grid) return;
+  gameState.hand.forEach((letter, idx) => {
+    const isSelected = gameState.selectedIndices.includes(idx);
+    const tile = document.createElement('div');
+    tile.className = 'letter-tile' + (isSelected ? ' selected' : '');
+    tile.dataset.idx = idx;
 
-  const cell = grid.querySelector(`[data-index="${index}"]`);
-  if (!cell) return;
+    const val = LETTER_VALUES[letter.toUpperCase()] ?? 1;
+    tile.innerHTML = `${letter}<span class="letter-tile__val">${val}</span>`;
 
-  cell.textContent = gameState.word[index];
-  cell.classList.add('letter-cell--hit');
-
-  // Uruchom animację bounce
-  cell.style.animation = 'none';
-  cell.offsetHeight; // reflow
-  cell.style.animation = '';
-}
-
-// ---- Trzęsenie siatki (pudło) ------------------------------
-
-function shakeWordGrid() {
-  const grid = $('word-grid');
-  if (!grid) return;
-  grid.classList.remove('word-grid--shake');
-  grid.offsetHeight; // reflow
-  grid.classList.add('word-grid--shake');
-  grid.addEventListener('animationend', () => {
-    grid.classList.remove('word-grid--shake');
-  }, { once: true });
-}
-
-// ---- Klawiatura --------------------------------------------
-
-function resetKeyboard() {
-  document.querySelectorAll('.keyboard-key').forEach(btn => {
-    btn.classList.remove('keyboard-key--hit', 'keyboard-key--miss');
+    tile.addEventListener('click', () => toggleLetter(idx));
+    container.appendChild(tile);
   });
 }
 
-function markKeyUsed(letter, result) {
-  const btn = document.querySelector(`.keyboard-key[data-letter="${letter}"]`);
-  if (!btn) return;
-  btn.classList.remove('keyboard-key--hit', 'keyboard-key--miss');
-  btn.classList.add(result === 'hit' ? 'keyboard-key--hit' : 'keyboard-key--miss');
-}
+function renderPlaysIndicator() {
+  const container = document.getElementById('plays-indicator');
+  if (!container) return;
+  container.innerHTML = '';
 
-// ---- Timer -------------------------------------------------
-
-function renderTimer(timeLeft, maxTime) {
-  const circumference = 2 * Math.PI * 18;
-  const ring = $('timer-ring-fg');
-  if (!ring) return;
-
-  const fraction = maxTime > 0 ? timeLeft / maxTime : 0;
-  const offset = circumference * (1 - fraction);
-  ring.style.strokeDashoffset = offset.toFixed(2);
-
-  // Kolor: zielony > żółty > czerwony
-  if (fraction > 0.5) {
-    ring.style.stroke = 'var(--accent-light)';
-  } else if (fraction > 0.25) {
-    ring.style.stroke = 'var(--combo)';
-  } else {
-    ring.style.stroke = 'var(--miss)';
+  for (let i = 0; i < 5; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'play-dot' + (i >= gameState.playsLeft ? ' used' : '');
+    container.appendChild(dot);
   }
 }
 
-// ---- Aktualizacje na żywo ----------------------------------
+function renderHandFigures() {
+  const container = document.getElementById('hand-figures');
+  if (!container) return;
+  container.innerHTML = '';
 
-function updateMultiplierDisplay(multiplier) {
-  const el = $('multiplier-value');
-  if (el) el.textContent = multiplier.toFixed(1);
-}
-
-function updateComboDisplay(combo) {
-  const wrapper = $('combo-display');
-  const val = $('combo-value');
-  if (!wrapper || !val) return;
-
-  val.textContent = combo;
-  if (combo >= 3) {
-    wrapper.classList.add('combo-display--active');
-  } else {
-    wrapper.classList.remove('combo-display--active');
-  }
-}
-
-function updateInkDisplay(ink) {
-  const el = $('game-ink');
-  if (el) el.innerHTML = `${ink} <span class="ink-icon">✦</span>`;
-}
-
-function updateScoreDisplay() {
-  const el = $('game-score');
-  if (el) {
-    const liveScore = Math.floor(gameState.basePoints * gameState.multiplier);
-    el.textContent = (gameState.score - gameState.roundScore + liveScore).toLocaleString('pl-PL');
-  }
-}
-
-function updateErrorMarkers(errors) {
-  const markers = document.querySelectorAll('.error-marker');
-  markers.forEach((m, i) => {
-    m.classList.toggle('error-marker--active', i < errors);
-  });
-  const label = $('errors-label');
-  if (label) label.textContent = `${errors}/6 błędów`;
-}
-
-// ---- Figury pasywne ----------------------------------------
-
-function renderActiveFigures(figureIds) {
-  const bar = $('active-figures-bar');
-  if (!bar) return;
-  bar.innerHTML = '';
-
-  figureIds.forEach(id => {
-    const fig = FIGURES[id];
+  gameState.handFigures.forEach(figId => {
+    const fig = FIGURES[figId];
     if (!fig) return;
-    const pill = document.createElement('div');
-    pill.className = 'figure-pill';
-    pill.title = fig.description;
-    pill.textContent = `${fig.icon} ${fig.name}`;
-    bar.appendChild(pill);
+    const chip = document.createElement('div');
+    chip.className = 'oneshot-chip';
+    chip.innerHTML = `<span>${fig.icon}</span><span>${fig.name}</span>`;
+    chip.title = fig.description;
+    chip.addEventListener('click', () => {
+      useOneshotFigure(figId);
+    });
+    container.appendChild(chip);
   });
 }
 
-// ---- Figury w ręce (jednorazowe) ---------------------------
+function updateWordPreview() {
+  const preview = document.getElementById('word-preview');
+  const tierBadge = document.getElementById('word-tier-badge');
+  if (!preview) return;
 
-function renderHandFigures(figureIds) {
-  const bar = $('hand-figures-bar');
-  if (!bar) return;
-  bar.innerHTML = '';
+  preview.innerHTML = '';
 
-  figureIds.forEach(id => {
-    const fig = FIGURES[id];
-    if (!fig) return;
-    const btn = document.createElement('button');
-    btn.className = 'hand-figure-btn';
-    btn.title = fig.description;
-    btn.textContent = `${fig.icon} ${fig.name}`;
-    btn.dataset.figureId = id;
-    btn.addEventListener('click', () => handleOneshot(id));
-    bar.appendChild(btn);
-  });
-}
-
-// ---- Podsumowanie rundy ------------------------------------
-
-function showRoundSummary(state, reason, roundScore, inkReward, timeBonus) {
-  const card = $('summary-card');
-  const icon = $('summary-icon');
-  const wordEl = $('summary-word');
-  const defEl = $('summary-definition');
-
-  const guessed = reason === 'guessed';
-
-  card.classList.remove('summary-card--win', 'summary-card--loss');
-  card.classList.add(guessed ? 'summary-card--win' : 'summary-card--loss');
-
-  if (icon) icon.textContent = guessed ? '✓' : '✗';
-  if (wordEl) wordEl.textContent = state.word;
-  if (defEl) defEl.textContent = state.definition;
-
-  // Wyniki
-  const setVal = (id, val) => { const el = $(id); if (el) el.textContent = val; };
-
-  setVal('summary-base-points', state.basePoints.toLocaleString('pl-PL'));
-  setVal('summary-multiplier', `×${state.multiplier.toFixed(1)}`);
-  setVal('summary-time-bonus', `+${timeBonus}`);
-  setVal('summary-round-score', roundScore.toLocaleString('pl-PL'));
-  const inkEl = $('summary-ink');
-  if (inkEl) inkEl.innerHTML = `+${inkReward} <span class="ink-icon">✦</span>`;
-
-  // Przycisk dalej
-  const btn = $('btn-next-round');
-  if (btn) {
-    btn.onclick = () => nextRound();
-  }
-
-  showScreen('screen-round-summary');
-}
-
-// ---- Ekran wyboru figury -----------------------------------
-
-export function renderFigurePickScreen(state) {
-  $('figure-round-num').textContent = state.round;
-  $('figure-round-max').textContent = state.maxRounds;
-
-  const offer = $('figures-offer');
-  if (!offer) return;
-
-  // Pobieramy ofertę z gameState._figureOffer (ustawionej przez main.js / scriptorium.js)
-  if (!state._figureOffer || state._figureOffer.length === 0) {
-    offer.innerHTML = '<p style="color:var(--text-muted);text-align:center">Ładowanie figur…</p>';
-    // Wylosuj synchronicznie (getRandomFigures jest już zaimportowany)
-    state._figureOffer = getRandomFigures(3, [], state.ante);
-    renderFigurePickScreen(state);
+  if (gameState.selectedIndices.length === 0) {
+    const ph = document.createElement('span');
+    ph.className = 'word-preview__placeholder';
+    ph.textContent = 'Kliknij litery...';
+    preview.appendChild(ph);
+    if (tierBadge) tierBadge.textContent = '';
     return;
   }
 
-  offer.innerHTML = '';
-  state._figureOffer.forEach(figId => {
-    const fig = FIGURES[figId];
-    if (!fig) return;
-    const card = createFigureCard(fig, () => onPickFigure(figId, state));
-    offer.appendChild(card);
+  gameState.selectedIndices.forEach(idx => {
+    const letter = gameState.hand[idx];
+    const tile = document.createElement('div');
+    tile.className = 'preview-tile';
+    tile.textContent = letter;
+    preview.appendChild(tile);
   });
 
-  // Podgląd aktywnych figur
-  const preview = $('active-figures-preview');
-  if (preview) {
-    preview.innerHTML = '';
-    state.activeFigures.forEach(id => {
-      const fig = FIGURES[id];
-      if (!fig) return;
-      const badge = document.createElement('span');
-      badge.className = 'mini-figure-badge';
-      badge.textContent = `${fig.icon} ${fig.name}`;
-      preview.appendChild(badge);
-    });
-    if (state.activeFigures.length === 0) {
-      preview.innerHTML = '<span style="color:var(--text-dim);font-size:0.78rem">brak</span>';
-    }
-  }
-
-  // Przycisk pomiń
-  const skipBtn = $('btn-skip-figure');
-  if (skipBtn) {
-    skipBtn.onclick = () => onSkipFigure(state);
+  const len = gameState.selectedIndices.length;
+  const tier = getTier(len);
+  if (tierBadge) {
+    tierBadge.textContent = tier.name;
+    tierBadge.style.color = tier.color;
   }
 }
 
-function createFigureCard(fig, onClick) {
-  const card = document.createElement('div');
-  card.className = `figure-card${fig.type === 'oneshot' ? ' figure-card--oneshot' : ''}`;
-  card.innerHTML = `
-    <div class="figure-icon">${fig.icon}</div>
-    <div class="figure-info">
-      <div class="figure-name">${fig.name}</div>
-      <span class="figure-type-badge figure-type-badge--${fig.type}">
-        ${fig.type === 'passive' ? 'Pasywna' : 'Jednorazowa'}
-      </span>
-      <div class="figure-desc">${fig.description}</div>
-      <div class="figure-rarity">${rarityLabel(fig.rarity)}</div>
-    </div>
+// ---- Score popup ---------------------------------------------------
+
+let popupTimer = null;
+
+export function showScorePopup({ word, result }) {
+  const popup = document.getElementById('score-popup');
+  if (!popup) return;
+
+  popup.innerHTML = `
+    <div class="score-popup__word">${word.toUpperCase()}</div>
+    <div class="score-popup__value">+${result.score}</div>
+    <div class="score-popup__tier" style="color:${result.tier.color}">${result.tier.name}</div>
+    <div class="score-popup__detail">${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}</div>
   `;
-  card.addEventListener('click', onClick);
+
+  popup.classList.add('show');
+  if (popupTimer) clearTimeout(popupTimer);
+  popupTimer = setTimeout(() => popup.classList.remove('show'), 1600);
+}
+
+export function showWordRejected(data) {
+  const hand = document.getElementById('hand');
+  if (!hand) return;
+
+  hand.classList.add('invalid');
+  setTimeout(() => hand.classList.remove('invalid'), 350);
+
+  const popup = document.getElementById('score-popup');
+  if (popup) {
+    popup.innerHTML = `<div style="color:var(--red);font-weight:700">${
+      data.bezblednik ? '(Bezbłędnik) Nieznane słowo' : 'Nieznane słowo'
+    }</div>`;
+    popup.classList.add('show');
+    if (popupTimer) clearTimeout(popupTimer);
+    popupTimer = setTimeout(() => popup.classList.remove('show'), 1200);
+  }
+}
+
+// ---- Ekran podsumowania --------------------------------------------
+
+export function renderSummaryScreen({ won, inkReward, score }) {
+  const blind = gameState.currentBlind;
+
+  setEl('summary-result-icon', won ? '🏆' : '💀');
+  setEl('summary-title', won ? 'Blind wygrany!' : 'Blind przegrany');
+  setEl('sum-score', score.toLocaleString('pl'));
+  setEl('sum-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
+  setEl('sum-ink', won ? `+${inkReward}` : '0');
+
+  const title = document.getElementById('summary-title');
+  if (title) title.style.color = won ? 'var(--green)' : 'var(--red)';
+
+  const btn = document.getElementById('btn-summary-continue');
+  if (btn) btn.textContent = won ? 'Scriptorium →' : 'Koniec gry';
+}
+
+// ---- Ekran końcowy -------------------------------------------------
+
+export function renderEndScreen({ victory }) {
+  setEl('end-icon', victory ? '🎉' : '💀');
+  setEl('end-title', victory ? 'Zwycięstwo!' : 'Porażka');
+  setEl('end-subtitle', victory
+    ? 'Ukończyłeś wszystkie kategorie!'
+    : 'Nie udało się osiągnąć progu punktowego.');
+
+  setEl('end-total-score', gameState.totalScore.toLocaleString('pl'));
+  setEl('end-highscore', gameState.highScore.toLocaleString('pl'));
+  setEl('end-words-count', gameState.wordsPlayedThisRun.length);
+
+  const wordsEl = document.getElementById('end-words-list');
+  if (wordsEl) {
+    wordsEl.innerHTML = '';
+    const shown = gameState.wordsPlayedThisRun.slice(-30);
+    shown.forEach(w => {
+      const tag = document.createElement('span');
+      tag.className = 'end-word-tag' + (w.categoryBonus ? ' cat' : '');
+      tag.textContent = w.word.toUpperCase();
+      wordsEl.appendChild(tag);
+    });
+  }
+}
+
+// ---- Tag toast -----------------------------------------------------
+
+export function showTagToast(tag) {
+  const toast = document.createElement('div');
+  toast.className = 'tag-toast';
+  toast.textContent = `Bonus: ${tag.label}`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2200);
+}
+
+// ---- Ekran gry: update inkrujementalny -----------------------------
+
+export function updateGameAfterPlay() {
+  updateGameHeader();
+  renderTargetWord();
+  renderHand();
+  renderPlaysIndicator();
+  renderHandFigures();
+  updateWordPreview();
+}
+
+// ---- Helpers -------------------------------------------------------
+
+function setEl(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text ?? '';
+}
+
+export function buildFigureCardEl(fig, cost, showSell = false) {
+  const card = document.createElement('div');
+  card.className = `figure-card ${fig.rarity === 'legendary' ? 'legendary' : ''}`;
+  card.title = fig.linguisticMeaning || '';
+
+  const canAfford = gameState.ink >= cost;
+
+  card.innerHTML = `
+    <div class="figure-card__icon">${fig.icon}</div>
+    <div class="figure-card__name">${fig.name}</div>
+    <div class="figure-card__desc">${fig.description}</div>
+    <div class="figure-card__cost" style="${!canAfford && !showSell ? 'color:var(--red)' : ''}">
+      ✦ ${cost}
+    </div>
+    <div class="figure-card__rarity ${fig.rarity}">${
+      fig.rarity === 'common' ? 'Pospolita' :
+      fig.rarity === 'rare'   ? 'Rzadka'    : 'Legendarna'
+    }</div>
+    ${showSell ? `<button class="sell-btn">Sprzedaj (✦${fig.sellValue})</button>` : ''}
+  `;
+
   return card;
 }
 
-function rarityLabel(rarity) {
-  const map = { common: 'Pospolita', rare: 'Rzadka', legendary: 'Legendarna ✦' };
-  return map[rarity] || rarity;
-}
-
-function onPickFigure(figId, state) {
-  const fig = FIGURES[figId];
-  if (fig?.type === 'passive' && state.activeFigures.includes(figId)) {
-    showToast('Ta figura jest już aktywna!');
-    return;
-  }
-  const success = addFigure(figId);
-  if (!success && fig?.type === 'passive') {
-    showToast('Możesz mieć maksymalnie 5 aktywnych figur!');
-    return;
-  }
-  state._figureOffer = [];
-  startRound();
-}
-
-function onSkipFigure(state) {
-  state.ink += 5;
-  state._figureOffer = [];
-  startRound();
-}
-
-// ---- Ekran Ante --------------------------------------------
-
-export function renderAnteScreen(ante) {
-  const romanMap = ['', 'I', 'II', 'III', 'IV', 'V'];
-  const badge = $('ante-badge');
-  const title = $('ante-title');
-  const changes = $('ante-changes');
-
-  if (badge) badge.textContent = `ROZDZIAŁ ${romanMap[ante] || ante}`;
-  if (title) title.textContent = `Poziom trudności wzrósł`;
-
-  const items = [
-    'Timer skrócony o 5 sekund',
-    'Trudniejsze słowa w puli',
-  ];
-  if (ante >= 3) items.push('Odblokowano legendarne figury w Scriptorium');
-
-  if (changes) {
-    changes.innerHTML = items.map(t => `<li>${t}</li>`).join('');
+// ---- Event listeners na ekranie blind-select back ------------------
+export function bindBlindSelectEvents() {
+  const backBtn = document.getElementById('blind-back-btn');
+  if (backBtn) {
+    backBtn.onclick = () => {
+      if (gameState.phase === 'blind-select') {
+        showScreen('screen-map');
+      }
+    };
   }
 
-  const btn = $('btn-ante-continue');
-  if (btn) {
-    btn.onclick = () => openScriptorium();
+  const skipFigBtn = document.getElementById('btn-skip-figure');
+  if (skipFigBtn) {
+    skipFigBtn.onclick = () => skipFigurePick();
   }
-}
-
-// ---- Game over ---------------------------------------------
-
-function renderGameOver(state) {
-  $('gameover-score').textContent = state.totalScore.toLocaleString('pl-PL');
-
-  const hsEl = $('gameover-highscore');
-  if (hsEl) {
-    if (state.totalScore >= state.highScore) {
-      hsEl.textContent = '🏆 Nowy rekord!';
-    } else {
-      hsEl.textContent = `Rekord: ${state.highScore.toLocaleString('pl-PL')}`;
-    }
-  }
-
-  const setVal = (id, val) => { const el = $(id); if (el) el.textContent = val; };
-  setVal('stat-words-guessed', state.wordsGuessed);
-  setVal('stat-words-failed', state.wordsFailed);
-  setVal('stat-max-combo', state.maxComboThisRun);
-  const inkEl = $('stat-total-ink');
-  if (inkEl) inkEl.innerHTML = `${state.ink} <span class="ink-icon">✦</span>`;
-
-  const title = $('gameover-title');
-  if (title) {
-    title.textContent = state.wordsGuessed > state.wordsFailed
-      ? 'Świetna gra!'
-      : 'Koniec gry';
-  }
-}
-
-// ---- Toast --------------------------------------------------
-
-export function showToast(message, duration = 2500) {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s';
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
 }

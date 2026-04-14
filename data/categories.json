@@ -1,0 +1,114 @@
+{
+  "categories": [
+    {
+      "id": "filozofia",
+      "name": "Filozofia",
+      "icon": "🧠",
+      "words": ["prawda", "dobro", "piękno", "logos", "etyka", "dusza", "rozum", "cnota", "wolność", "byt"],
+      "blinds": [
+        { "id": "logos",   "word": "LOGOS",   "definition": "Greckie pojęcie oznaczające rozum, słowo lub zasadę porządkującą wszechświat",                   "type": "small", "targetScore": 300  },
+        { "id": "cnota",   "word": "CNOTA",   "definition": "Trwała dyspozycja woli do czynienia dobra; doskonałość moralna człowieka",                        "type": "big",   "targetScore": 600  },
+        { "id": "dialektyka","word":"DIALEKTYKA","definition":"Metoda dochodzenia do prawdy poprzez zderzanie przeciwstawnych tez i syntezę sprzeczności",      "type": "boss",  "targetScore": 1200 }
+      ]
+    },
+    {
+      "id": "nauka",
+      "name": "Nauka",
+      "icon": "🔬",
+      "words": ["atom", "masa", "siła", "prąd", "falka", "enzym", "gen", "orbit", "foton", "neuron"],
+      "blinds": [
+        { "id": "foton",   "word": "FOTON",   "definition": "Elementarna cząstka światła; kwant promieniowania elektromagnetycznego bez masy spoczynkowej",    "type": "small", "targetScore": 300  },
+        { "id": "enzym",   "word": "ENZYM",   "definition": "Białkowy katalizator biologiczny przyspieszający reakcje chemiczne w organizmach żywych",         "type": "big",   "targetScore": 600  },
+        { "id": "hipoteza","word": "HIPOTEZA","definition": "Przypuszczenie naukowe wymagające weryfikacji, punkt wyjścia do badań empirycznych",               "type": "boss",  "targetScore": 1200 }
+      ]
+    },
+    {
+      "id": "historia",
+      "name": "Historia",
+      "icon": "⚔️",
+      "words": ["cesarz", "bitwa", "tron", "kronika", "dynastia", "edykt", "sejm", "hetman", "zamek", "rycerz"],
+      "blinds": [
+        { "id": "edykt",   "word": "EDYKT",   "definition": "Uroczyste rozporządzenie lub dekret wydany przez władcę z mocą obowiązującą prawa",               "type": "small", "targetScore": 450  },
+        { "id": "dynastia","word": "DYNASTIA","definition": "Ród panujący dziedziczący władzę przez kolejne pokolenia; następstwo władców tej samej rodziny",   "type": "big",   "targetScore": 900  },
+        { "id": "feudalizm","word":"FEUDALIZM","definition":"Średniowieczny ustrój społeczno-gospodarczy oparty na hierarchii lennej i zależności wasalnej",      "type": "boss",  "targetScore": 1800 }
+      ]
+    },
+    {
+      "id": "kultura",
+      "name": "Kultura i sztuka",
+      "icon": "🎨",
+      "words": ["sonata", "fresk", "opera", "sonet", "barok", "mural", "rzeźba", "farba", "rytm", "strofa"],
+      "blinds": [
+        { "id": "fresk",   "word": "FRESK",   "definition": "Technika malarska polegająca na nakładaniu farb na świeży tynk; malowidło ścienne",                "type": "small", "targetScore": 450  },
+        { "id": "sonata",  "word": "SONATA",  "definition": "Instrumentalny utwór muzyczny złożony z kilku kontrastujących ze sobą ogniw",                     "type": "big",   "targetScore": 900  },
+        { "id": "impresjonizm","word":"IMPRESJONIZM","definition":"Kierunek w malarstwie XIX w. kładący nacisk na utrwalenie ulotnego wrażenia świetlnego",    "type": "boss",  "targetScore": 1800 }
+      ]
+    },
+    {
+      "id": "geografia",
+      "name": "Geografia",
+      "icon": "🌍",
+      "words": ["delta", "fiord", "step", "kanion", "laguna", "mierzeja", "atol", "depresja", "lodowiec", "monsun"],
+      "blinds": [
+        { "id": "atol",    "word": "ATOL",    "definition": "Koralowa wyspa w kształcie pierścienia otaczająca lagunę na środku oceanu",                       "type": "small", "targetScore": 450  },
+        { "id": "fiord",   "word": "FIORD",   "definition": "Długa i wąska zatoka morska powstała przez zalanie doliny polodowcowej",                         "type": "big",   "targetScore": 900  },
+        { "id": "archipelag","word":"ARCHIPELAG","definition":"Skupisko wysp i wysepek na morzu lub oceanie tworzące geograficzną całość",                      "type": "boss",  "targetScore": 1800 }
+      ]
+    },
+    {
+      "id": "technika",
+      "name": "Technika",
+      "icon": "⚙️",
+      "words": ["silnik", "tłok", "dźwig", "laser", "beton", "tranzystor", "antena", "pryzmat", "turbina", "kabel"],
+      "blinds": [
+        { "id": "tłok",    "word": "TŁOK",    "definition": "Ruchomy element cylindra w silniku spalinowym zamieniający ciśnienie gazu w ruch postępowy",      "type": "small", "targetScore": 600  },
+        { "id": "turbina", "word": "TURBINA", "definition": "Silnik cieplny lub wodny zamieniający energię cieczy lub gazu w energię mechaniczną",             "type": "big",   "targetScore": 1200 },
+        { "id": "tranzystor","word":"TRANZYSTOR","definition":"Półprzewodnikowy element elektroniczny służący do wzmacniania i przełączania sygnałów",           "type": "boss",  "targetScore": 2400 }
+      ]
+    },
+    {
+      "id": "religia",
+      "name": "Religia",
+      "icon": "✝️",
+      "words": ["modlitwa", "dogmat", "sakrament", "psalmy", "świątynia", "kapłan", "ofiara", "mistyk", "ikona", "rytuał"],
+      "blinds": [
+        { "id": "dogmat",  "word": "DOGMAT",  "definition": "Twierdzenie uznane za niepodważalną prawdę wiary, przyjmowane bez dowodu",                       "type": "small", "targetScore": 600  },
+        { "id": "sakrament","word":"SAKRAMENT","definition":"Obrzęd religijny w chrześcijaństwie będący widzialnym znakiem niewidzialnej łaski Bożej",         "type": "big",   "targetScore": 1200 },
+        { "id": "eschatologia","word":"ESCHATOLOGIA","definition":"Dział teologii zajmujący się zagadnieniami ostatecznymi: śmiercią, sądem, niebem i piekłem","type": "boss",  "targetScore": 2400 }
+      ]
+    },
+    {
+      "id": "gospodarka",
+      "name": "Gospodarka",
+      "icon": "💰",
+      "words": ["podatek", "inflacja", "kapitał", "eksport", "rynek", "akcja", "deficyt", "kurs", "popyt", "spółka"],
+      "blinds": [
+        { "id": "akcja",   "word": "AKCJA",   "definition": "Papier wartościowy reprezentujący udział w kapitale spółki i uprawniający do dywidendy",         "type": "small", "targetScore": 600  },
+        { "id": "inflacja","word": "INFLACJA","definition": "Wzrost ogólnego poziomu cen towarów i usług powodujący spadek siły nabywczej pieniądza",          "type": "big",   "targetScore": 1200 },
+        { "id": "monopol", "word": "MONOPOL", "definition": "Sytuacja rynkowa, w której jeden podmiot ma wyłączną kontrolę nad dobrami lub usługami",         "type": "boss",  "targetScore": 2400 }
+      ]
+    },
+    {
+      "id": "spoleczenstwo",
+      "name": "Społeczeństwo",
+      "icon": "👥",
+      "words": ["prawo", "norma", "klasa", "kultura", "elita", "media", "protest", "integracja", "tożsamość", "wartość"],
+      "blinds": [
+        { "id": "norma",   "word": "NORMA",   "definition": "Przyjęty wzorzec zachowania lub reguła postępowania obowiązująca w danej grupie społecznej",     "type": "small", "targetScore": 800  },
+        { "id": "elita",   "word": "ELITA",   "definition": "Wyróżniająca się część społeczeństwa posiadająca szczególne wpływy, prestiż lub kompetencje",   "type": "big",   "targetScore": 1600 },
+        { "id": "demografia","word":"DEMOGRAFIA","definition":"Nauka badająca stan i dynamikę ludności; zjawiska związane z rozwojem populacji",              "type": "boss",  "targetScore": 3200 }
+      ]
+    },
+    {
+      "id": "polska",
+      "name": "Polska",
+      "icon": "🦅",
+      "words": ["mazurka", "szlachta", "sejm", "husarz", "piast", "orzeł", "wawel", "bursztyn", "wisła", "solidarność"],
+      "blinds": [
+        { "id": "husarz",  "word": "HUSARZ",  "definition": "Ciężkozbrojny jeździec polskiej jazdy z XVII w. znany z charakterystycznych skrzydeł przy zbroi","type": "small", "targetScore": 800  },
+        { "id": "szlachta","word": "SZLACHTA","definition": "Stan społeczny w dawnej Polsce cieszący się przywilejami prawnymi i monopolem na sprawowanie władzy","type":"big","targetScore": 1600 },
+        { "id": "solidarnosc","word":"SOLIDARNOŚĆ","definition":"Niezależny Samorządny Związek Zawodowy będący symbolem polskiego ruchu wolnościowego lat 80.",  "type": "boss",  "targetScore": 3200 }
+      ]
+    }
+  ]
+}

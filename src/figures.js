@@ -1,24 +1,21 @@
-// src/figures.js — definicje 15 figur retorycznych + hook system
-
-import { emitter } from './eventEmitter.js';
-
-// ---- Definicje figur ----------------------------------------
+// src/figures.js — 15 figur retorycznych (przepisane hooki pod nową mechanikę)
 
 export const FIGURES = {
-  // ---- PASYWNE -----------------------------------------------
+  // ---- PASYWNE (10) ------------------------------------------
 
   hiperbola: {
     id: 'hiperbola',
     name: 'Hiperbola',
-    description: 'Mnożnik startuje od 1.5 zamiast 1.0',
+    description: 'Mnożnik startuje od ×2 zamiast ×1',
     linguisticMeaning: 'Przesada, wyolbrzymienie',
     type: 'passive',
     rarity: 'rare',
-    cost: 4,
+    cost: 5,
     icon: '⬆',
+    sellValue: 3,
     hooks: {
-      onRoundStart: (state) => {
-        state.multiplier = 1.5;
+      onBlindStart: (state) => {
+        state._figureState.hiperbola = true;
       },
     },
   },
@@ -26,57 +23,58 @@ export const FIGURES = {
   aliteracja: {
     id: 'aliteracja',
     name: 'Aliteracja',
-    description: 'Powtarzające się litery w słowie warte 2×',
-    linguisticMeaning: 'Powtórzenie tej samej litery',
+    description: 'Powtarzające się litery w słowie warte 2× punktów',
+    linguisticMeaning: 'Powtórzenie tej samej głoski na początku kolejnych wyrazów',
     type: 'passive',
     rarity: 'common',
     cost: 3,
     icon: '↩',
-    hooks: {
-      // Efekt zawarty w scoring.js (sprawdza activeFigures)
-    },
+    sellValue: 1,
+    hooks: {},
+    // efekt obsługiwany bezpośrednio w scoring.js
   },
 
   polonizm: {
     id: 'polonizm',
     name: 'Polonizm',
-    description: 'Polskie znaki (ą, ę, ć...) warte 3×',
-    linguisticMeaning: 'Cecha charakterystyczna polszczyzny',
+    description: 'Polskie znaki (ą, ę, ć…) dają +2 mnożnik każdy',
+    linguisticMeaning: 'Wyrażenie charakterystyczne dla języka polskiego',
     type: 'passive',
     rarity: 'common',
     cost: 3,
     icon: 'Ą',
-    hooks: {
-      // Efekt zawarty w scoring.js
-    },
+    sellValue: 1,
+    hooks: {},
+    // efekt obsługiwany w scoring.js
   },
 
   pleonazm: {
     id: 'pleonazm',
     name: 'Pleonazm',
-    description: 'Odkrycie litery kosztuje 30% mniej atramentu',
-    linguisticMeaning: 'Nadmiar, redundancja',
+    description: 'Figury w Scriptorium tańsze o 1 atrament (min. 1)',
+    linguisticMeaning: 'Nadmiarowe użycie słów o tym samym znaczeniu',
     type: 'passive',
     rarity: 'common',
     cost: 2,
     icon: '−',
-    hooks: {
-      // Flaga sprawdzana w scriptorium/ui przy kosztach odkrycia
-    },
+    sellValue: 1,
+    hooks: {},
+    // efekt w scriptorium.js: getFigureCost() sprawdza pleonazm
   },
 
   litotes: {
     id: 'litotes',
     name: 'Litotes',
-    description: 'Timer startuje od 90s zamiast 60s',
+    description: '+1 zagranie na każdy blind',
     linguisticMeaning: 'Niedopowiedzenie, umniejszenie',
     type: 'passive',
     rarity: 'rare',
-    cost: 4,
+    cost: 5,
     icon: '⏱',
+    sellValue: 3,
     hooks: {
-      onRoundStart: (state) => {
-        state.timeLeft = 90;
+      onBlindStart: (state) => {
+        state.playsLeft += 1;
       },
     },
   },
@@ -84,30 +82,34 @@ export const FIGURES = {
   bezblednik: {
     id: 'bezblednik',
     name: 'Bezbłędnik',
-    description: 'Pierwszy błąd w rundzie nie odejmuje punktów ani nie liczy się jako błąd',
-    linguisticMeaning: 'Poprawność językowa',
+    description: 'Pierwsze niepoprawne słowo nie kosztuje zagrania',
+    linguisticMeaning: 'Wyrażenie pozbawione błędów',
     type: 'passive',
     rarity: 'rare',
     cost: 5,
     icon: '✓',
+    sellValue: 3,
     hooks: {
-      // Efekt zawarty w scoring.calculateMiss
+      onBlindStart: (state) => {
+        state._figureState.bezblednikUsed = false;
+      },
     },
   },
 
   inicjal: {
     id: 'inicjal',
     name: 'Inicjał',
-    description: 'Na starcie rundy pierwsza litera słowa jest odkryta',
-    linguisticMeaning: 'Pierwsza ozdobna litera',
+    description: 'Pierwsza litera docelowego słowa odkryta od razu',
+    linguisticMeaning: 'Ozdobna pierwsza litera tekstu',
     type: 'passive',
     rarity: 'common',
     cost: 3,
     icon: 'I',
+    sellValue: 1,
     hooks: {
-      onRoundStart: (state) => {
-        if (state.word.length > 0) {
-          state.revealed[0] = true;
+      onBlindStart: (state) => {
+        if (state.currentBlind && state.revealedLetters !== undefined) {
+          state.revealedLetters.add(0);
         }
       },
     },
@@ -116,194 +118,222 @@ export const FIGURES = {
   kombo: {
     id: 'kombo',
     name: 'Kombo',
-    description: 'Bonus za combo +0.5 zamiast +0.3',
-    linguisticMeaning: 'Ciągłość, seria',
+    description: '3 słowa z kategorii z rzędu → +5 mnożnik na następne',
+    linguisticMeaning: 'Połączenie kilku elementów w jedną całość',
     type: 'passive',
     rarity: 'rare',
     cost: 4,
     icon: '⚡',
-    hooks: {
-      // Efekt zawarty w scoring.calculateHit
-    },
+    sellValue: 2,
+    hooks: {},
+    // sprawdzane w game.js: _figureState.categoryStreak
   },
 
   skryba: {
     id: 'skryba',
     name: 'Skryba',
-    description: '+1 atrament za każde trafienie',
-    linguisticMeaning: 'Przepisywacz, kolekcjoner',
+    description: '+2 atrament za każde zagrane słowo',
+    linguisticMeaning: 'Przepisywacz ksiąg, pisarz',
     type: 'passive',
     rarity: 'common',
     cost: 2,
     icon: '✦',
-    hooks: {
-      // Efekt zawarty w scoring.calculateHit
-    },
+    sellValue: 1,
+    hooks: {},
+    // obsługiwane w game.js po zagraniu słowa
   },
 
   perfekcjonista: {
     id: 'perfekcjonista',
     name: 'Perfekcjonista',
-    description: 'Brak błędów w rundzie = podwójne punkty końcowe',
-    linguisticMeaning: 'Dążenie do ideału',
+    description: 'Wygrana z ≥2 zagraniami w rezerwie → ×2 atrament',
+    linguisticMeaning: 'Ktoś dążący do doskonałości',
     type: 'passive',
     rarity: 'legendary',
-    cost: 6,
+    cost: 7,
     icon: '★',
+    sellValue: 4,
     hooks: {
-      onRoundEnd: (state) => {
-        if (state.errors === 0) {
-          state.roundScore = Math.floor(state.roundScore * 2);
+      onBlindEnd: (state, inkReward) => {
+        if (state.won && state.playsLeft >= 2) {
+          return inkReward * 2;
         }
+        return inkReward;
       },
     },
   },
 
-  // ---- JEDNORAZOWE -------------------------------------------
+  // ---- JEDNORAZOWE (5) ----------------------------------------
 
   elipsa: {
     id: 'elipsa',
     name: 'Elipsa',
-    description: 'Pauzuje timer na 10 sekund',
-    linguisticMeaning: 'Opuszczenie, pominięcie',
+    description: '+1 odrzucenie (natychmiast)',
+    linguisticMeaning: 'Opuszczenie wyrazu domyślnego z kontekstu',
     type: 'oneshot',
     rarity: 'common',
     cost: 2,
     icon: '⏸',
-    activate: (state) => {
-      emitter.emit('timerPause', { duration: 10 });
+    sellValue: 1,
+    hooks: {
+      onUse: (state) => {
+        state.discardsLeft += 1;
+        return { message: '+1 odrzucenie!' };
+      },
     },
   },
 
   synekdocha: {
     id: 'synekdocha',
     name: 'Synekdocha',
-    description: 'Odkrywa najrzadszą zakrytą literę za darmo',
-    linguisticMeaning: 'Część zamiast całości',
+    description: 'Odkryj 2 losowe litery docelowego słowa',
+    linguisticMeaning: 'Użycie części zamiast całości lub odwrotnie',
     type: 'oneshot',
     rarity: 'rare',
     cost: 4,
     icon: '◎',
-    activate: (state) => {
-      emitter.emit('revealRarest', { state });
+    sellValue: 2,
+    hooks: {
+      onUse: (state) => {
+        const word = state.currentBlind?.word || '';
+        const hidden = [];
+        for (let i = 0; i < word.length; i++) {
+          if (!state.revealedLetters.has(i)) hidden.push(i);
+        }
+        // Odkryj do 2 losowych
+        for (let r = 0; r < Math.min(2, hidden.length); r++) {
+          const pick = Math.floor(Math.random() * hidden.length);
+          state.revealedLetters.add(hidden.splice(pick, 1)[0]);
+        }
+        return { message: 'Odkryto 2 litery!' };
+      },
     },
   },
 
   anakolut: {
     id: 'anakolut',
     name: 'Anakolut',
-    description: 'Przywraca combo do wartości sprzed ostatniego błędu',
-    linguisticMeaning: 'Zerwanie ciągłości, błąd który staje się regułą',
+    description: 'Odzyskaj ostatnio zużyte zagranie',
+    linguisticMeaning: 'Nielogiczna zmiana konstrukcji zdania w połowie',
     type: 'oneshot',
     rarity: 'rare',
     cost: 3,
     icon: '↺',
-    activate: (state) => {
-      state.combo = state.comboBeforeLastMiss;
+    sellValue: 2,
+    hooks: {
+      onUse: (state) => {
+        if (state.playsLeft < 5) {
+          state.playsLeft += 1;
+          return { message: '+1 zagranie!' };
+        }
+        return { message: 'Już masz maksymalnie zagrań' };
+      },
     },
   },
 
   emfaza: {
     id: 'emfaza',
     name: 'Emfaza',
-    description: 'Podwaja mnożnik do końca rundy',
-    linguisticMeaning: 'Wzmocnienie wybranego elementu',
+    description: 'Podwój mnożnik następnego słowa',
+    linguisticMeaning: 'Szczególny nacisk, wyróżnienie',
     type: 'oneshot',
     rarity: 'legendary',
     cost: 5,
     icon: '×2',
-    activate: (state) => {
-      state.multiplier = parseFloat((state.multiplier * 2).toFixed(2));
+    sellValue: 3,
+    hooks: {
+      onUse: (state) => {
+        state._figureState.emfazaActive = true;
+        return { message: 'Następne słowo ×2 mnożnik!' };
+      },
     },
   },
 
   akrostych: {
     id: 'akrostych',
     name: 'Akrostych',
-    description: 'Pokazuje pierwszą i ostatnią literę słowa',
-    linguisticMeaning: 'Ukryta informacja w pierwszych literach',
+    description: 'Odkryj 1. i ostatnią literę + dobierz 3 nowe litery',
+    linguisticMeaning: 'Ukryty tekst w pierwszych literach wersów',
     type: 'oneshot',
     rarity: 'common',
     cost: 3,
     icon: '▣',
-    activate: (state) => {
-      if (state.word.length > 0) {
-        state.revealed[0] = true;
-        state.revealed[state.word.length - 1] = true;
-      }
+    sellValue: 1,
+    hooks: {
+      onUse: (state) => {
+        const word = state.currentBlind?.word || '';
+        if (word.length > 0) {
+          state.revealedLetters.add(0);
+          state.revealedLetters.add(word.length - 1);
+        }
+        // Wymień 3 losowe litery z ręki na nowe
+        const indices = [];
+        while (indices.length < Math.min(3, state.hand.length)) {
+          const idx = Math.floor(Math.random() * state.hand.length);
+          if (!indices.includes(idx)) indices.push(idx);
+        }
+        const { hand, pool } = import_replenishHand(state.hand, indices, state.letterPool);
+        state.hand = hand;
+        state.letterPool = pool;
+        return { message: 'Odkryto skrajne litery, dobrano 3 nowe!' };
+      },
     },
   },
 };
 
-// ---- Wagi rzadkości -----------------------------------------
+// Pomocnicza — importowana lazy żeby uniknąć circular imports
+let import_replenishHand = null;
+export function setReplenishHand(fn) { import_replenishHand = fn; }
 
-const RARITY_WEIGHTS = { common: 5, rare: 2, legendary: 1 };
+// ---- Hook dispatch ------------------------------------------
+
+export function applyFigureHooks(figureIds, hookName, state, ...args) {
+  let result = args[0];
+  for (const id of figureIds) {
+    const fig = FIGURES[id];
+    if (!fig?.hooks?.[hookName]) continue;
+    const ret = fig.hooks[hookName](state, result);
+    if (ret !== undefined) result = ret;
+  }
+  return result;
+}
 
 // ---- Losowanie figur ----------------------------------------
 
+const RARITY_WEIGHTS = { common: 5, rare: 2, legendary: 1 };
+
 export function getRandomFigures(count, excludeIds = [], ante = 1) {
-  const allIds = Object.keys(FIGURES);
+  const pool = Object.values(FIGURES).filter(f => {
+    if (excludeIds.includes(f.id)) return false;
+    if (ante < 2 && f.rarity === 'legendary') return false;
+    return true;
+  });
 
-  // Ante 1: tylko common + rare; Ante 2+: wszystkie
-  const rarityFilter = ante >= 2
-    ? ['common', 'rare', 'legendary']
-    : ['common', 'rare'];
-
-  const available = allIds.filter(id =>
-    !excludeIds.includes(id) &&
-    rarityFilter.includes(FIGURES[id].rarity)
-  );
-
-  if (available.length === 0) return [];
-
-  // Ważone losowanie
-  const picked = [];
-  const pool = [...available];
-
-  for (let i = 0; i < Math.min(count, pool.length); i++) {
-    const totalWeight = pool.reduce(
-      (sum, id) => sum + RARITY_WEIGHTS[FIGURES[id].rarity], 0
-    );
-    let rand = Math.random() * totalWeight;
-    let chosen = pool[pool.length - 1];
-
-    for (const id of pool) {
-      rand -= RARITY_WEIGHTS[FIGURES[id].rarity];
-      if (rand <= 0) { chosen = id; break; }
-    }
-
-    picked.push(chosen);
-    pool.splice(pool.indexOf(chosen), 1);
+  const weighted = [];
+  for (const fig of pool) {
+    const w = RARITY_WEIGHTS[fig.rarity] ?? 1;
+    for (let i = 0; i < w; i++) weighted.push(fig);
   }
 
-  return picked;
-}
-
-// ---- Stosowanie hooków ------------------------------------
-
-export function applyFigureHooks(figureIds, hookName, state) {
-  for (const id of figureIds) {
-    const fig = FIGURES[id];
-    if (fig?.hooks?.[hookName]) {
-      fig.hooks[hookName](state);
+  const result = [];
+  const seen = new Set();
+  const shuffled = [...weighted].sort(() => Math.random() - 0.5);
+  for (const fig of shuffled) {
+    if (!seen.has(fig.id)) {
+      seen.add(fig.id);
+      result.push(fig);
+      if (result.length >= count) break;
     }
   }
+  return result;
 }
 
-// ---- Aktywacja figury jednorazowej -------------------------
-
-export function activateFigure(figureId, state) {
-  const fig = FIGURES[figureId];
-  if (!fig || fig.type !== 'oneshot') return false;
-  if (!fig.activate) return false;
-  fig.activate(state);
-  return true;
+export function getFigureCost(figureId, activeFigures = []) {
+  const base = FIGURES[figureId]?.cost ?? 3;
+  const discount = activeFigures.includes('pleonazm') ? 1 : 0;
+  return Math.max(1, base - discount);
 }
 
-// ---- Koszt figury w Scriptorium ----------------------------
-
-export function getFigureCost(figureId, discount = false) {
-  const fig = FIGURES[figureId];
-  if (!fig) return 0;
-  return discount ? Math.max(1, Math.floor(fig.cost * 0.75)) : fig.cost;
+export function getFigureSellValue(figureId) {
+  return FIGURES[figureId]?.sellValue ?? 1;
 }
