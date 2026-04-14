@@ -71,12 +71,13 @@ export function initGame() {
 }
 
 export function startGame(settings) {
-  const { maxRounds, difficulty } = settings;
+  const { maxRounds, difficulty, category = 'all' } = settings;
 
   gameState.round = 1;
   gameState.maxRounds = maxRounds;
   gameState.ante = 1;
   gameState.difficultyMode = difficulty;
+  gameState.selectedCategory = category;
   gameState.score = 0;
   gameState.ink = 0;
   gameState.totalScore = 0;
@@ -95,7 +96,7 @@ export async function startRound() {
   if (currentTimer) currentTimer.stop();
 
   // Wybierz słowo
-  const wordEntry = getRandomWord(gameState.usedWordIds, gameState.ante, gameState.difficultyMode);
+  const wordEntry = getRandomWord(gameState.usedWordIds, gameState.ante, gameState.difficultyMode, gameState.selectedCategory);
   if (!wordEntry) {
     endGame();
     return;

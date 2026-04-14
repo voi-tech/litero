@@ -4,8 +4,14 @@ import wordsData from '../data/words.json';
 
 const WORDS = wordsData.words;
 
-export function getRandomWord(usedIds = [], ante = 1, difficultyMode = 'normal') {
+export function getRandomWord(usedIds = [], ante = 1, difficultyMode = 'normal', category = 'all') {
   let pool = WORDS.filter(w => !usedIds.includes(w.id));
+
+  // Filtruj po kategorii
+  if (category && category !== 'all') {
+    const catFiltered = pool.filter(w => w.category === category);
+    if (catFiltered.length > 0) pool = catFiltered;
+  }
 
   const diffFilter = getDifficultyFilter(ante, difficultyMode);
   let filtered = pool.filter(w => diffFilter.includes(w.difficulty));

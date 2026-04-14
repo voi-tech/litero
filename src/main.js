@@ -29,7 +29,7 @@ function updateStartHighscore() {
 // ---- Opcje startowe ----------------------------------------
 
 function setupStartOptions() {
-  ['rounds-selector', 'difficulty-selector'].forEach(groupId => {
+  ['rounds-selector', 'difficulty-selector', 'category-selector'].forEach(groupId => {
     const btns = document.querySelectorAll(`#${groupId} .opt-btn`);
     btns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -43,9 +43,11 @@ function setupStartOptions() {
 function getStartSettings() {
   const activeRounds = document.querySelector('#rounds-selector .opt-btn--active');
   const activeDiff = document.querySelector('#difficulty-selector .opt-btn--active');
+  const activeCat = document.querySelector('#category-selector .opt-btn--active');
   return {
     maxRounds: activeRounds ? parseInt(activeRounds.dataset.value, 10) : 10,
     difficulty: activeDiff ? activeDiff.dataset.value : 'normal',
+    category: activeCat ? activeCat.dataset.value : 'all',
   };
 }
 
