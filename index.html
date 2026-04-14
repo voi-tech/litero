@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Litero</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- EKRAN: Start -->
+  <section id="screen-start" class="screen screen--active">
+    <div class="screen-inner">
+      <header class="game-header">
+        <h1 class="game-title">LITERO</h1>
+        <p class="game-subtitle">Gra słowna z figurami retorycznymi</p>
+      </header>
+
+      <div class="start-highscore">
+        <span class="label">Rekord</span>
+        <span class="highscore-value" id="start-highscore">0</span>
+      </div>
+
+      <div class="start-options">
+        <div class="option-group">
+          <label class="option-label">Liczba rund</label>
+          <div class="option-buttons" id="rounds-selector">
+            <button class="opt-btn opt-btn--active" data-value="5">5</button>
+            <button class="opt-btn" data-value="10">10</button>
+            <button class="opt-btn" data-value="15">15</button>
+          </div>
+        </div>
+
+        <div class="option-group">
+          <label class="option-label">Poziom trudności</label>
+          <div class="option-buttons" id="difficulty-selector">
+            <button class="opt-btn opt-btn--active" data-value="normal">Normalny</button>
+            <button class="opt-btn" data-value="hard">Trudny</button>
+            <button class="opt-btn" data-value="insane">Szalony</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn--primary btn--large" id="btn-start">Zagraj</button>
+    </div>
+  </section>
+
+  <!-- EKRAN: Wybór figury -->
+  <section id="screen-figure-pick" class="screen">
+    <div class="screen-inner">
+      <div class="round-indicator">
+        <span class="round-label">Runda</span>
+        <span class="round-number" id="figure-round-num">1</span>
+        <span class="round-separator">/</span>
+        <span class="round-max" id="figure-round-max">15</span>
+      </div>
+
+      <h2 class="section-title">Wybierz figurę retoryczną</h2>
+      <p class="section-subtitle">Figura będzie działać przez całą rundę lub zostanie zachowana do ręcznego użycia</p>
+
+      <div class="figures-offer" id="figures-offer">
+        <!-- wypełniane dynamicznie -->
+      </div>
+
+      <div class="figure-pick-footer">
+        <div class="active-figures-preview">
+          <span class="label">Aktywne figury:</span>
+          <div class="active-figures-list" id="active-figures-preview"></div>
+        </div>
+        <button class="btn btn--ghost" id="btn-skip-figure">Pomiń (+5 <span class="ink-icon">✦</span>)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- EKRAN: Gra -->
+  <section id="screen-game" class="screen">
+    <div class="screen-inner screen-inner--game">
+
+      <!-- Nagłówek gry -->
+      <div class="game-topbar">
+        <div class="game-meta">
+          <div class="meta-item">
+            <span class="meta-label">Runda</span>
+            <span class="meta-value" id="game-round">1/15</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Punkty</span>
+            <span class="meta-value" id="game-score">0</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Atrament</span>
+            <span class="meta-value ink-value" id="game-ink">0 <span class="ink-icon">✦</span></span>
+          </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="timer-wrapper" id="timer-wrapper">
+          <svg class="timer-ring" viewBox="0 0 44 44">
+            <circle class="timer-ring__bg" cx="22" cy="22" r="18" />
+            <circle class="timer-ring__fg" id="timer-ring-fg" cx="22" cy="22" r="18"
+              stroke-dasharray="113.1"
+              stroke-dashoffset="0" />
+          </svg>
+          <span class="timer-value" id="timer-value">30</span>
+        </div>
+      </div>
+
+      <!-- Mnożnik i combo -->
+      <div class="multiplier-row">
+        <div class="multiplier-display">
+          <span class="multiplier-label">×</span>
+          <span class="multiplier-value" id="multiplier-value">1.0</span>
+        </div>
+        <div class="combo-display" id="combo-display">
+          <span class="combo-value" id="combo-value">0</span>
+          <span class="combo-label">combo</span>
+        </div>
+      </div>
+
+      <!-- Definicja słowa -->
+      <div class="definition-box" id="definition-box">
+        <div class="definition-loading" id="definition-loading">Wczytywanie definicji…</div>
+        <p class="definition-text" id="definition-text"></p>
+        <div class="word-hint" id="word-hint"></div>
+      </div>
+
+      <!-- Kratki słowa -->
+      <div class="word-grid-wrapper">
+        <div class="word-grid" id="word-grid"></div>
+      </div>
+
+      <!-- Błędy wisielca -->
+      <div class="errors-row">
+        <div class="error-markers" id="error-markers">
+          <span class="error-marker"></span>
+          <span class="error-marker"></span>
+          <span class="error-marker"></span>
+          <span class="error-marker"></span>
+          <span class="error-marker"></span>
+          <span class="error-marker"></span>
+        </div>
+        <span class="errors-label" id="errors-label">0/6 błędów</span>
+      </div>
+
+      <!-- Aktywne figury -->
+      <div class="active-figures-bar" id="active-figures-bar"></div>
+
+      <!-- Figury jednorazowe w ręce -->
+      <div class="hand-figures-bar" id="hand-figures-bar"></div>
+
+      <!-- Klawiatura ekranowa -->
+      <div class="keyboard" id="keyboard">
+        <div class="keyboard-row" data-row="1">
+          <button class="keyboard-key" data-letter="Q">Q</button>
+          <button class="keyboard-key" data-letter="W">W</button>
+          <button class="keyboard-key" data-letter="E">E</button>
+          <button class="keyboard-key" data-letter="R">R</button>
+          <button class="keyboard-key" data-letter="T">T</button>
+          <button class="keyboard-key" data-letter="Y">Y</button>
+          <button class="keyboard-key" data-letter="U">U</button>
+          <button class="keyboard-key" data-letter="I">I</button>
+          <button class="keyboard-key" data-letter="O">O</button>
+          <button class="keyboard-key" data-letter="P">P</button>
+        </div>
+        <div class="keyboard-row" data-row="2">
+          <button class="keyboard-key" data-letter="A">A</button>
+          <button class="keyboard-key" data-letter="S">S</button>
+          <button class="keyboard-key" data-letter="D">D</button>
+          <button class="keyboard-key" data-letter="F">F</button>
+          <button class="keyboard-key" data-letter="G">G</button>
+          <button class="keyboard-key" data-letter="H">H</button>
+          <button class="keyboard-key" data-letter="J">J</button>
+          <button class="keyboard-key" data-letter="K">K</button>
+          <button class="keyboard-key" data-letter="L">L</button>
+        </div>
+        <div class="keyboard-row" data-row="3">
+          <button class="keyboard-key" data-letter="Z">Z</button>
+          <button class="keyboard-key" data-letter="X">X</button>
+          <button class="keyboard-key" data-letter="C">C</button>
+          <button class="keyboard-key" data-letter="V">V</button>
+          <button class="keyboard-key" data-letter="B">B</button>
+          <button class="keyboard-key" data-letter="N">N</button>
+          <button class="keyboard-key" data-letter="M">M</button>
+        </div>
+        <div class="keyboard-row keyboard-row--polish" data-row="4">
+          <button class="keyboard-key" data-letter="Ą">Ą</button>
+          <button class="keyboard-key" data-letter="Ć">Ć</button>
+          <button class="keyboard-key" data-letter="Ę">Ę</button>
+          <button class="keyboard-key" data-letter="Ł">Ł</button>
+          <button class="keyboard-key" data-letter="Ń">Ń</button>
+          <button class="keyboard-key" data-letter="Ó">Ó</button>
+          <button class="keyboard-key" data-letter="Ś">Ś</button>
+          <button class="keyboard-key" data-letter="Ź">Ź</button>
+          <button class="keyboard-key" data-letter="Ż">Ż</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- EKRAN: Podsumowanie rundy -->
+  <section id="screen-round-summary" class="screen">
+    <div class="screen-inner">
+      <div class="summary-card" id="summary-card">
+        <div class="summary-result" id="summary-result">
+          <span class="summary-icon" id="summary-icon">✓</span>
+          <span class="summary-word" id="summary-word"></span>
+        </div>
+
+        <div class="summary-definition" id="summary-definition"></div>
+
+        <div class="summary-scores">
+          <div class="score-row">
+            <span class="score-label">Punkty bazowe</span>
+            <span class="score-val" id="summary-base-points">0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Mnożnik</span>
+            <span class="score-val" id="summary-multiplier">×1.0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Bonus za czas</span>
+            <span class="score-val" id="summary-time-bonus">0</span>
+          </div>
+          <div class="score-row score-row--total">
+            <span class="score-label">Wynik rundy</span>
+            <span class="score-val" id="summary-round-score">0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Zdobyty atrament</span>
+            <span class="score-val ink-value" id="summary-ink">+0 ✦</span>
+          </div>
+        </div>
+
+        <button class="btn btn--primary" id="btn-next-round">Dalej</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- EKRAN: Scriptorium -->
+  <section id="screen-scriptorium" class="screen">
+    <div class="screen-inner">
+      <h2 class="section-title">Scriptorium</h2>
+      <p class="section-subtitle">Masz <span id="scriptorium-ink" class="ink-value">0 ✦</span> atramentu</p>
+
+      <div class="scriptorium-shop" id="scriptorium-shop">
+        <!-- wypełniane dynamicznie -->
+      </div>
+
+      <div class="scriptorium-active">
+        <h3 class="subsection-title">Twoje aktywne figury</h3>
+        <div class="scriptorium-active-list" id="scriptorium-active-list"></div>
+      </div>
+
+      <button class="btn btn--primary" id="btn-close-scriptorium">Zamknij Scriptorium</button>
+    </div>
+  </section>
+
+  <!-- EKRAN: Nowe Ante -->
+  <section id="screen-ante" class="screen">
+    <div class="screen-inner screen-inner--centered">
+      <div class="ante-badge" id="ante-badge">ANTE II</div>
+      <h2 class="ante-title" id="ante-title">Poziom trudności wzrósł</h2>
+      <ul class="ante-changes" id="ante-changes"></ul>
+      <button class="btn btn--primary" id="btn-ante-continue">Kontynuuj</button>
+    </div>
+  </section>
+
+  <!-- EKRAN: Koniec gry -->
+  <section id="screen-game-over" class="screen">
+    <div class="screen-inner">
+      <h2 class="gameover-title" id="gameover-title">Koniec gry</h2>
+
+      <div class="gameover-score-block">
+        <div class="gameover-score" id="gameover-score">0</div>
+        <div class="gameover-highscore" id="gameover-highscore"></div>
+      </div>
+
+      <div class="gameover-stats">
+        <div class="stat-item">
+          <span class="stat-label">Słów odgadniętych</span>
+          <span class="stat-value" id="stat-words-guessed">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Słów nieodgadniętych</span>
+          <span class="stat-value" id="stat-words-failed">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Maksymalne combo</span>
+          <span class="stat-value" id="stat-max-combo">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Łączny atrament</span>
+          <span class="stat-value ink-value" id="stat-total-ink">0 ✦</span>
+        </div>
+      </div>
+
+      <button class="btn btn--primary btn--large" id="btn-play-again">Zagraj ponownie</button>
+    </div>
+  </section>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
