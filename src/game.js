@@ -1,7 +1,7 @@
 // src/game.js — core game loop i stan gry
 
 import { emitter } from './eventEmitter.js';
-import { getRandomWord, fetchDefinition } from './words.js';
+import { getRandomWordAsync, preloadWords } from './words.js';
 import {
   calculateHit,
   calculateMiss,
@@ -87,6 +87,7 @@ export function startGame(settings) {
   gameState.handFigures = [];
   gameState.usedWordIds = [];
   gameState.phase = 'figure-pick';
+  preloadWords(); // wypełnij cache Wikisłownika w tle
 }
 
 // ---- Start rundy ------------------------------------------
@@ -94,8 +95,8 @@ export function startGame(settings) {
 export async function startRound() {
   if (currentTimer) currentTimer.stop();
 
-  // Wybierz słowo
-  const wordEntry = getRandomWord(gameState.usedWordIds, gameState.ante, gameState.difficultyMode);
+  // Wybierz słowo (z cache Wikisłownika lub lokalnego fallbacku)
+  const wordEntry = await getRandomWordAsync(gameState.usedWordIds, gameState.ante, gameState.difficultyMode);
   if (!wordEntry) {
     endGame();
     return;
@@ -126,14 +127,7 @@ export async function startRound() {
   // Emituj stan wstępny dla UI
   emitter.emit('roundStarted', { state: gameState, wordEntry });
 
-  // Pobierz definicję z Wikisłownika (po starcie UI, przed timerem)
-  const wikiDef = await fetchDefinition(gameState.word);
-  if (wikiDef) {
-    gameState.definition = wikiDef;
-    emitter.emit('definitionLoaded', { definition: wikiDef });
-  }
-
-  // Uruchom timer (po załadowaniu definicji)
+  // Uruchom timer
   currentTimer = createTimer(
     gameState.timeLeft,
     (timeLeft) => {
