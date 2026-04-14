@@ -48,7 +48,7 @@ export const gameState = {
   maxComboThisRun: 0,
 
   // timer
-  timeLeft: 30,
+  timeLeft: 60,
   timerRunning: false,
 
   // statystyki
@@ -149,9 +149,9 @@ export async function startRound() {
 }
 
 function getBaseTime() {
-  const baseTimes = { normal: 30, hard: 25, insane: 20 };
-  const base = baseTimes[gameState.difficultyMode] ?? 30;
-  return Math.max(15, base - (gameState.ante - 1) * 5);
+  const baseTimes = { normal: 60, hard: 50, insane: 40 };
+  const base = baseTimes[gameState.difficultyMode] ?? 60;
+  return Math.max(20, base - (gameState.ante - 1) * 10);
 }
 
 // ---- Obsługa litery ----------------------------------------

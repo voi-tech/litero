@@ -76,7 +76,7 @@ export const FIGURES = {
     icon: '⏱',
     hooks: {
       onRoundStart: (state) => {
-        state.timeLeft = 45;
+        state.timeLeft = 90;
       },
     },
   },
