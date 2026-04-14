@@ -170,6 +170,12 @@ function extractDefinition(polishText, titleLower) {
     .filter(Boolean);
 
   for (const line of lines) {
+    // Pomiń zapis fonetyczny (IPA, AS, wymowa)
+    if (/IPA:/i.test(line)) continue;
+    if (/\bAS:/i.test(line)) continue;
+    if (/\/[^\s/]{2,}\//.test(line)) continue;    // /ˈkɔlaʂ/
+    if (/^\[[^\]]{2,}\]/.test(line)) continue;    // [fonetyka]
+
     // Definicje oznaczone "1.1 tekst" lub "1. tekst"
     const numbered = line.match(/^\d+\.\d*\s+(.{15,})/);
     if (numbered) return numbered[1].trim().slice(0, 220);
@@ -180,7 +186,7 @@ function extractDefinition(polishText, titleLower) {
       line.length > 35 &&
       !lineLower.startsWith(titleLower) &&
       !META_PREFIXES.some(p => lineLower.startsWith(p)) &&
-      !/^[=\[\{(]/.test(line)
+      !/^[=\[\{(\/]/.test(line)
     ) {
       return line.slice(0, 220);
     }
