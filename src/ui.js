@@ -56,9 +56,9 @@ function setupEmitterHandlers() {
 
   emitter.on('definitionLoaded', ({ definition }) => {
     const defEl = $('definition-text');
-    const loadEl = $('definition-loading');
-    if (defEl) defEl.textContent = definition;
-    if (loadEl) loadEl.style.display = 'none';
+    if (defEl) {
+      defEl.textContent = definition;
+    }
   });
 
   emitter.on('letterHit', ({ letter, positions, multiplier, combo, ink }) => {
@@ -141,12 +141,12 @@ function renderGameScreen(state) {
 
   // Definicja
   const defEl = $('definition-text');
-  const loadEl = $('definition-loading');
-  const hintEl = $('word-hint');
+  const catEl = $('def-category');
+  const hintEl = $('def-hint');
 
-  if (defEl) defEl.textContent = '';
-  if (loadEl) loadEl.style.display = '';
-  if (hintEl) hintEl.textContent = state.hint ? `${state.category} — ${state.hint}` : state.category;
+  if (defEl) defEl.textContent = state.definition || '';
+  if (catEl) catEl.textContent = state.category || '';
+  if (hintEl) hintEl.textContent = state.hint || '';
 
   // Siatka słowa
   renderWordGrid(state.word, state.revealed);
