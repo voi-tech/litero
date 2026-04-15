@@ -137,7 +137,7 @@ function renderBlindCards() {
         <span class="blind-card__target">Cel: ${blind.targetScore} pkt</span>
       </div>
       <div class="blind-card__word">${wordDisplay}</div>
-      <div class="blind-card__definition">${isDone ? activeBlind.definition : '???'}</div>
+      <div class="blind-card__definition">${activeBlind.definition}</div>
       ${isCurrent ? `
         <div class="skip-form">
           <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
