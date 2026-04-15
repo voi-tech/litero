@@ -67,11 +67,9 @@
 
 <!-- ===== EKRAN GRY ===== -->
 <div id="screen-game" class="screen">
+
+  <!-- Nagłówek: wynik, atrament -->
   <div class="game-header">
-    <div class="game-stat">
-      <span class="stat-label">Próba</span>
-      <span class="stat-value" id="g-blind-name">—</span>
-    </div>
     <div class="game-stat">
       <span class="stat-label">Wynik</span>
       <span class="stat-value" id="g-score">0</span>
@@ -83,41 +81,30 @@
     </div>
   </div>
 
-  <!-- Pasek postępu -->
-  <div class="progress-bar-wrap">
-    <div class="progress-bar" id="g-progress-bar">
-      <div class="progress-bar__fill" id="g-progress-fill"></div>
-    </div>
-  </div>
+  <!-- Info o próbie: kategoria, numer, pozostało -->
+  <div class="game-context" id="game-context"></div>
 
   <!-- Docelowe słowo -->
   <div class="target-word-wrap">
-    <div class="target-word" id="target-word">
-      <!-- kafelki liter -->
-    </div>
+    <div class="target-word" id="target-word"></div>
     <p class="blind-definition" id="g-definition"></p>
   </div>
 
-  <!-- Formularz odgadywania hasła -->
-  <div class="guess-form" id="guess-form">
-    <input id="guess-input" type="text" placeholder="Odgadnij hasło..." maxlength="30" autocomplete="off" />
+  <!-- Przycisk Zgadnij (toggle) + ukryty formularz -->
+  <button class="btn btn--ghost btn--sm" id="btn-guess-toggle">Zgadnij</button>
+  <div class="guess-form" id="guess-form" style="display:none">
+    <input id="guess-input" type="text" placeholder="Wpisz hasło..." maxlength="30" autocomplete="off" />
     <button class="btn btn--ghost btn--sm" id="btn-guess">Potwierdź</button>
   </div>
 
-  <!-- Aktywne figury pasywne -->
-  <div class="active-figures" id="active-figures"></div>
-
   <!-- Aktualnie wybrane słowo + tier -->
   <div class="word-preview-wrap">
-    <div class="word-preview" id="word-preview">
-    </div>
+    <div class="word-preview" id="word-preview"></div>
     <div class="word-tier-badge" id="word-tier-badge"></div>
   </div>
 
   <!-- Ręka gracza -->
-  <div class="hand" id="hand">
-    <!-- kafelki liter -->
-  </div>
+  <div class="hand" id="hand"></div>
 
   <!-- Przyciski akcji -->
   <div class="game-actions">
@@ -125,19 +112,20 @@
       Odrzuć (<span id="g-discards">3</span>)
     </button>
     <button class="btn btn--primary" id="btn-play">
-      Zagraj
+      Zagraj (<span id="g-plays">5</span>)
     </button>
     <button class="btn btn--ghost" id="btn-sort">A→Z</button>
   </div>
-  <!-- Licznik zagrań -->
-  <div class="plays-indicator" id="plays-indicator">
-    <!-- generowane przez ui.js -->
-  </div>
+
+  <!-- Aktywne figury pasywne i bonusy -->
+  <div class="active-figures" id="active-figures"></div>
 
   <!-- Figury jednorazowe -->
-  <div class="hand-figures" id="hand-figures">
-    <!-- generowane przez ui.js -->
-  </div>
+  <div class="hand-figures" id="hand-figures"></div>
+
+  <!-- Zagrane słowa w tej rundzie -->
+  <div class="played-words" id="played-words"></div>
+
 </div>
 
 <!-- ===== EKRAN PODSUMOWANIA ===== -->
@@ -176,9 +164,7 @@
     <!-- Sklep: figury do kupienia -->
     <section class="scr-shop">
       <h3>Sklep</h3>
-      <div class="figure-grid" id="scr-shop-grid">
-        <!-- generowane przez scriptorium.js -->
-      </div>
+      <div class="figure-grid" id="scr-shop-grid"></div>
 
       <!-- Bonus pasywny (po pokonaniu bossa) -->
       <div id="scr-passive-section" style="display:none">
@@ -193,9 +179,7 @@
     <!-- Aktywne figury gracza -->
     <section class="scr-active">
       <h3>Twoje figury (<span id="scr-active-count">0</span>/5)</h3>
-      <div class="figure-grid" id="scr-active-grid">
-        <!-- generowane przez scriptorium.js -->
-      </div>
+      <div class="figure-grid" id="scr-active-grid"></div>
     </section>
   </div>
 </div>

@@ -64,9 +64,10 @@ function renderShop() {
 
     const canAfford = gameState.ink >= cost;
     const passiveFull = fig.type === 'passive' && gameState.activeFigures.length >= 5;
+    const oneshotFull = fig.type !== 'passive' && gameState.handFigures.length >= 3;
     const alreadyOwns = gameState.activeFigures.includes(fig.id) || gameState.handFigures.includes(fig.id);
 
-    if (!canAfford || passiveFull || alreadyOwns) {
+    if (!canAfford || passiveFull || oneshotFull || alreadyOwns) {
       card.style.opacity = '0.45';
       card.style.cursor = 'not-allowed';
     } else {
@@ -131,18 +132,22 @@ function renderOwnedFigures() {
     grid.appendChild(card);
   });
 
-  // Jednorazowe figury w ręce
+  // Jednorazowe figury w ręce (z opcją sprzedaży)
   gameState.handFigures.forEach(figId => {
     const fig = FIGURES[figId];
     if (!fig) return;
-    const card = buildFigureCardEl(fig, 0, false);
+    const sellVal = getFigureSellValue(figId);
+    const card = buildFigureCardEl(fig, sellVal, true);
     card.classList.add('owned');
     card.style.borderColor = 'var(--gold)';
 
-    const note = document.createElement('div');
-    note.style.cssText = 'font-size:.68rem;color:var(--gold);';
-    note.textContent = 'Jednorazowa';
-    card.appendChild(note);
+    const sellBtn = card.querySelector('.sell-btn');
+    if (sellBtn) {
+      sellBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sellFigure(figId);
+      });
+    }
 
     grid.appendChild(card);
   });

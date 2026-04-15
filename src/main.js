@@ -17,6 +17,7 @@ import {
   renderEndScreen,
   showTagToast,
   bindBlindSelectEvents,
+  resetGuessForm,
 } from './ui.js';
 import { openScriptorium, bindScriptoriumEvents } from './scriptorium.js';
 
@@ -76,6 +77,7 @@ function bindGameEvents() {
   });
 
   emitter.on('blindStarted', () => {
+    resetGuessForm();
     renderGameScreen();
     showScreen('screen-game');
   });

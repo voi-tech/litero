@@ -54,6 +54,7 @@ export const gameState = {
   // Statystyki run
   totalScore: 0,
   wordsPlayedThisRun: [],
+  wordsPlayedThisBlind: [],  // reset per blind
   highScore: 0,
 
   // Tagi (bonusy ze skipowania)
@@ -167,6 +168,7 @@ export function startBlind(blindIndex) {
   gameState.revealedLetters = new Set();
   gameState.categoryStreak = 0;
   gameState._figureState = {};
+  gameState.wordsPlayedThisBlind = [];
 
   // Hooki onBlindStart (hiperbola, litotes, bezblednik)
   applyFigureHooks(gameState.activeFigures, 'onBlindStart', gameState);
@@ -335,6 +337,7 @@ export function playWord() {
     for (const seg of validSegments) {
       const isCatWord = currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase());
       gameState.wordsPlayedThisRun.push({ word: seg.word, score: 0, categoryBonus: isCatWord });
+      gameState.wordsPlayedThisBlind.push(seg.word);
     }
     updateRevealedLetters();
 
@@ -543,15 +546,24 @@ export function addFigure(figureId) {
     if (gameState.activeFigures.includes(figureId)) return false;
     gameState.activeFigures.push(figureId);
   } else {
+    if (gameState.handFigures.length >= 3) return false; // max 3 jednorazowe
     gameState.handFigures.push(figureId);
   }
   return true;
 }
 
 export function removeFigure(figureId) {
-  const idx = gameState.activeFigures.indexOf(figureId);
-  if (idx !== -1) {
-    gameState.activeFigures.splice(idx, 1);
+  // Sprawdź pasywne
+  const pIdx = gameState.activeFigures.indexOf(figureId);
+  if (pIdx !== -1) {
+    gameState.activeFigures.splice(pIdx, 1);
+    gameState.ink += getFigureSellValue(figureId);
+    return true;
+  }
+  // Sprawdź jednorazowe
+  const hIdx = gameState.handFigures.indexOf(figureId);
+  if (hIdx !== -1) {
+    gameState.handFigures.splice(hIdx, 1);
     gameState.ink += getFigureSellValue(figureId);
     return true;
   }

@@ -182,29 +182,27 @@ export function renderGameScreen() {
   renderPlaysIndicator();
   renderActiveFigures();
   renderHandFigures();
+  renderPlayedWords();
   updateWordPreview();
   bindGuessForm();
 }
 
 function updateGameHeader() {
   const blind = gameState.currentBlind;
-  if (blind) {
-    const word = blind.word.toUpperCase();
-    const display = word.split('').map((l, i) => gameState.revealedLetters.has(i) ? l : '_').join(' ');
-    setEl('g-blind-name', display);
-  } else {
-    setEl('g-blind-name', '');
-  }
+
   setEl('g-score', gameState.runningScore.toLocaleString('pl'));
   setEl('g-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
   setEl('g-ink', gameState.ink);
   setEl('g-discards', gameState.discardsLeft);
 
-  const fill = document.getElementById('g-progress-fill');
-  if (fill && blind) {
-    const pct = Math.min(100, (gameState.runningScore / blind.targetScore) * 100);
-    fill.style.width = pct + '%';
-  }
+  // Informacja o próbie: "Próba X z N • Kategoria • pozostało: R"
+  const total = (gameState.shuffledCategories?.length ?? 0) * 3;
+  const done = gameState.completedBlinds?.length ?? 0;
+  const current = done + 1;
+  const remaining = Math.max(0, total - current);
+  const catName = gameState.currentCategory?.name ?? '';
+  const blindTypeName = blind?.type === 'small' ? 'Szkic' : blind?.type === 'big' ? 'Esej' : 'Traktat';
+  setEl('game-context', `Próba ${current} z ${total} • ${catName} — ${blindTypeName} • pozostało: ${remaining}`);
 
   setEl('g-definition', blind?.definition ?? '');
 }
@@ -244,19 +242,10 @@ export function renderHand() {
 }
 
 function renderPlaysIndicator() {
-  const container = document.getElementById('plays-indicator');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const total = gameState.playsLeft + gameState.playsUsedThisBlind;
-  for (let i = 0; i < total; i++) {
-    const dot = document.createElement('div');
-    dot.className = 'play-dot' + (i >= gameState.playsLeft ? ' used' : '');
-    container.appendChild(dot);
-  }
+  setEl('g-plays', gameState.playsLeft);
 }
 
-// Aktywne figury pasywne + bonusy — widoczne na ekranie gry
+// Aktywne figury pasywne + bonusy — widoczne pod przyciskami
 export function renderActiveFigures() {
   const container = document.getElementById('active-figures');
   if (!container) return;
@@ -286,7 +275,7 @@ export function renderActiveFigures() {
   });
 }
 
-// Jednorazowe figury w ręce — jako pełne karty
+// Jednorazowe figury w ręce — jako pełne karty z przyciskiem Użyj
 function renderHandFigures() {
   const container = document.getElementById('hand-figures');
   if (!container) return;
@@ -303,6 +292,21 @@ function renderHandFigures() {
     useBtn.addEventListener('click', () => useOneshotFigure(figId));
     card.appendChild(useBtn);
     container.appendChild(card);
+  });
+}
+
+// Zagrane słowa w bieżącej rundzie
+function renderPlayedWords() {
+  const el = document.getElementById('played-words');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!gameState.wordsPlayedThisBlind?.length) return;
+
+  gameState.wordsPlayedThisBlind.forEach(word => {
+    const tag = document.createElement('span');
+    tag.className = 'played-word-tag';
+    tag.textContent = word.toUpperCase();
+    el.appendChild(tag);
   });
 }
 
@@ -334,29 +338,60 @@ function updateWordPreview() {
   }
 }
 
-// ---- Guess form binding --------------------------------------------
+// ---- Guess form (toggle) binding -----------------------------------
 
 let _guessFormBound = false;
 function bindGuessForm() {
   if (_guessFormBound) return;
   _guessFormBound = true;
 
-  const btn = document.getElementById('btn-guess');
+  const toggleBtn = document.getElementById('btn-guess-toggle');
+  const form = document.getElementById('guess-form');
   const input = document.getElementById('guess-input');
+  const confirmBtn = document.getElementById('btn-guess');
 
-  if (btn && input) {
-    btn.addEventListener('click', () => {
-      const result = guessBlindWord(input.value);
-      if (!result) {
-        input.classList.add('shake');
-        setTimeout(() => input.classList.remove('shake'), 400);
-        input.value = '';
-      }
-    });
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') btn.click();
-    });
+  function openForm() {
+    if (input) input.value = '';
+    if (form) form.style.display = 'flex';
+    if (toggleBtn) toggleBtn.style.display = 'none';
+    if (input) input.focus();
   }
+
+  function closeForm() {
+    if (form) form.style.display = 'none';
+    if (toggleBtn) toggleBtn.style.display = '';
+    if (input) input.value = '';
+  }
+
+  function submitGuess() {
+    if (!input) return;
+    const result = guessBlindWord(input.value);
+    if (!result) {
+      input.classList.add('shake');
+      setTimeout(() => {
+        input.classList.remove('shake');
+        closeForm();
+      }, 400);
+    }
+    // On correct guess, game.js will transition phase away from 'game',
+    // closeForm will be called on next render via resetGuessForm
+  }
+
+  if (toggleBtn) toggleBtn.addEventListener('click', openForm);
+  if (confirmBtn) confirmBtn.addEventListener('click', submitGuess);
+  if (input) input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitGuess();
+    if (e.key === 'Escape') closeForm();
+  });
+}
+
+export function resetGuessForm() {
+  const form = document.getElementById('guess-form');
+  const toggleBtn = document.getElementById('btn-guess-toggle');
+  const input = document.getElementById('guess-input');
+  if (form) form.style.display = 'none';
+  if (toggleBtn) toggleBtn.style.display = '';
+  if (input) input.value = '';
 }
 
 // ---- Score popup ---------------------------------------------------
@@ -477,6 +512,7 @@ export function updateGameAfterPlay() {
   renderPlaysIndicator();
   renderActiveFigures();
   renderHandFigures();
+  renderPlayedWords();
   updateWordPreview();
 }
 
