@@ -192,89 +192,106 @@ export function playWord() {
   if (gameState.phase !== 'game') return;
   const { selectedIndices, hand, currentBlind, currentCategory, activeFigures } = gameState;
 
-  if (selectedIndices.length < 2) {
-    emitter.emit('wordRejected', { reason: 'too_short' });
+  if (selectedIndices.length < 1) {
+    emitter.emit('discardFailed', { reason: 'nothing_selected' });
     return;
   }
 
   const wordLetters = selectedIndices.map(i => hand[i]);
-  const word = wordLetters.join('');
+  const fullWord = wordLetters.join('');
 
-  // Walidacja słownikowa
-  if (!isValidWord(word)) {
-    // Bezbłędnik: pierwsze niepoprawne słowo nie kosztuje zagrania
-    if (
-      activeFigures.includes('bezblednik') &&
-      !gameState._figureState.bezblednikUsed
-    ) {
+  // Szukaj najdłuższego poprawnego prefiksu zaznaczenia (jak w Balatro — auto-detect ręki)
+  let validWord = null;
+  let wordEndIdx = -1;
+
+  if (selectedIndices.length >= 2 && isValidWord(fullWord)) {
+    validWord = fullWord;
+    wordEndIdx = selectedIndices.length;
+  } else {
+    for (let k = selectedIndices.length - 1; k >= 2; k--) {
+      const prefix = wordLetters.slice(0, k).join('');
+      if (isValidWord(prefix)) {
+        validWord = prefix;
+        wordEndIdx = k;
+        break;
+      }
+    }
+  }
+
+  if (validWord) {
+    // --- Słowo znalezione: score słowa + surowe chipy z dodatkowych liter ---
+    const extraIndices = selectedIndices.slice(wordEndIdx);
+
+    const komboBonus = activeFigures.includes('kombo') && gameState.categoryStreak >= 2;
+    const result = scoreWord(validWord, currentCategory.id, currentCategory.words, activeFigures, {
+      emfazaActive: gameState._figureState.emfazaActive,
+      komboBonus,
+    });
+    gameState._figureState.emfazaActive = false;
+
+    // Surowe chipy z liter poza słowem
+    let extraChips = 0;
+    for (const idx of extraIndices) {
+      extraChips += (LETTER_VALUES[hand[idx].toUpperCase()] ?? 1);
+    }
+    result.score += extraChips;
+    result.extraChips = extraChips;
+
+    if (result.categoryBonus > 0) gameState.categoryStreak += 1;
+    else gameState.categoryStreak = 0;
+
+    gameState.runningScore += result.score;
+    gameState.playsLeft -= 1;
+    gameState.playsUsedThisBlind += 1;
+    if (activeFigures.includes('skryba')) gameState.ink += 2;
+
+    const { hand: newHand, pool: newPool } = replenishHand(hand, selectedIndices, gameState.letterPool);
+    gameState.hand = newHand;
+    gameState.letterPool = newPool;
+    gameState.selectedIndices = [];
+
+    gameState.wordsPlayedThisRun.push({ word: validWord, score: result.score, categoryBonus: result.categoryBonus > 0 });
+    updateRevealedLetters();
+
+    emitter.emit('wordPlayed', { word: validWord, result, state: gameState });
+
+  } else {
+    // --- Brak słowa: surowe chipy za wszystkie zaznaczone litery ---
+    // Bezbłędnik: pierwsze pudło nie kosztuje zagrania
+    if (activeFigures.includes('bezblednik') && !gameState._figureState.bezblednikUsed) {
       gameState._figureState.bezblednikUsed = true;
       emitter.emit('wordRejected', { reason: 'invalid', bezblednik: true });
       gameState.selectedIndices = [];
       emitter.emit('selectionChanged', { selectedIndices: [] });
       return;
     }
-    // Normalne odrzucenie (nie kosztuje zagrania)
-    emitter.emit('wordRejected', { reason: 'invalid' });
-    gameState.selectedIndices = [];
-    emitter.emit('selectionChanged', { selectedIndices: [] });
-    return;
-  }
 
-  // Oblicz wynik
-  const komboBonus =
-    activeFigures.includes('kombo') && gameState.categoryStreak >= 2;
-  const result = scoreWord(
-    word,
-    currentCategory.id,
-    currentCategory.words,
-    activeFigures,
-    {
-      emfazaActive: gameState._figureState.emfazaActive,
-      komboBonus,
+    let chips = 0;
+    for (const idx of selectedIndices) {
+      chips += (LETTER_VALUES[hand[idx].toUpperCase()] ?? 1);
     }
-  );
+    const score = chips;
+    gameState.runningScore += score;
+    gameState.playsLeft -= 1;
+    gameState.playsUsedThisBlind += 1;
+    if (activeFigures.includes('skryba')) gameState.ink += 2;
 
-  // Reset emfazy
-  gameState._figureState.emfazaActive = false;
+    const { hand: newHand, pool: newPool } = replenishHand(hand, selectedIndices, gameState.letterPool);
+    gameState.hand = newHand;
+    gameState.letterPool = newPool;
+    gameState.selectedIndices = [];
+    gameState.wordsPlayedThisRun.push({ word: fullWord, score, categoryBonus: false });
+    updateRevealedLetters();
 
-  // Aktualizuj kombo kategorialne
-  if (result.categoryBonus > 0) {
-    gameState.categoryStreak += 1;
-  } else {
-    gameState.categoryStreak = 0;
+    emitter.emit('wordPlayed', {
+      word: fullWord,
+      result: { score, chips, mult: 1, tier: { name: 'Litery', color: '#6b7280' }, categoryBonus: 0, lettersOnly: true },
+      state: gameState,
+    });
   }
 
-  gameState.runningScore += result.score;
-  gameState.playsLeft -= 1;
-  gameState.playsUsedThisBlind += 1;
-
-  // Skryba: +2 atramenty za słowo
-  if (activeFigures.includes('skryba')) {
-    gameState.ink += 2;
-  }
-
-  // Uzupełnij rękę
-  const { hand: newHand, pool: newPool } = replenishHand(
-    hand, selectedIndices, gameState.letterPool
-  );
-  gameState.hand = newHand;
-  gameState.letterPool = newPool;
-  gameState.selectedIndices = [];
-
-  // Zapisz słowo do historii
-  gameState.wordsPlayedThisRun.push({ word, score: result.score, categoryBonus: result.categoryBonus > 0 });
-
-  // Odkryj litery proporcjonalnie
-  updateRevealedLetters();
-
-  emitter.emit('wordPlayed', { word, result, state: gameState });
-
-  // Sprawdź koniec blinda
-  if (gameState.runningScore >= currentBlind.targetScore) {
-    endBlind(true);
-  } else if (gameState.playsLeft <= 0) {
-    endBlind(false);
-  }
+  if (gameState.runningScore >= currentBlind.targetScore) endBlind(true);
+  else if (gameState.playsLeft <= 0) endBlind(false);
 }
 
 // Proporcjonalne odkrywanie liter docelowego słowa
@@ -284,63 +301,6 @@ function updateRevealedLetters() {
   const toReveal = Math.floor(progress * word.length);
   for (let i = 0; i < toReveal; i++) {
     gameState.revealedLetters.add(i);
-  }
-}
-
-// ---- Zagranie liter (tylko chipy, bez słownika) -------------
-
-export function playLettersOnly() {
-  if (gameState.phase !== 'game') return;
-  const { selectedIndices, hand, currentBlind, activeFigures } = gameState;
-
-  if (selectedIndices.length < 1) {
-    emitter.emit('discardFailed', { reason: 'nothing_selected' });
-    return;
-  }
-
-  let chips = 0;
-  for (const idx of selectedIndices) {
-    const letter = hand[idx].toUpperCase();
-    chips += (LETTER_VALUES[letter] ?? 1);
-  }
-
-  const score = chips;
-
-  gameState.runningScore += score;
-  gameState.playsLeft -= 1;
-  gameState.playsUsedThisBlind += 1;
-
-  // Skryba: +2 atramenty
-  if (activeFigures.includes('skryba')) gameState.ink += 2;
-
-  const { hand: newHand, pool: newPool } = replenishHand(
-    hand, selectedIndices, gameState.letterPool
-  );
-  gameState.hand = newHand;
-  gameState.letterPool = newPool;
-  gameState.selectedIndices = [];
-
-  const word = selectedIndices.map(i => hand[i]).join('');
-  gameState.wordsPlayedThisRun.push({ word, score, categoryBonus: false });
-  updateRevealedLetters();
-
-  emitter.emit('wordPlayed', {
-    word,
-    result: {
-      score,
-      chips,
-      mult: 1,
-      tier: { name: 'Litery', color: '#6b7280' },
-      categoryBonus: 0,
-      lettersOnly: true,
-    },
-    state: gameState,
-  });
-
-  if (gameState.runningScore >= currentBlind.targetScore) {
-    endBlind(true);
-  } else if (gameState.playsLeft <= 0) {
-    endBlind(false);
   }
 }
 

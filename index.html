@@ -23,34 +23,16 @@
 
     <button class="btn btn--primary btn--large" id="btn-start">Zagraj</button>
 
-    <details class="how-to-play">
-      <summary>Jak grać?</summary>
+    <div class="how-to-play">
       <div class="how-to-play__body">
-        <p>Litero to gra słowna inspirowana Balatro. Zamiast kart masz polskie litery.</p>
         <ul>
-          <li>Masz <strong>8 liter</strong> w ręce. Klikaj litery, by tworzyć słowa.</li>
-          <li>Każdy blind ma <strong>próg punktowy</strong> do osiągnięcia w max. <strong>5 zagraniach</strong>.</li>
-          <li>Słowa z aktualnej kategorii dają bonus <strong>+3 mnożnik</strong>.</li>
-          <li>Punkty = <em>suma wartości liter × mnożnik</em>. Dłuższe słowa mają wyższy mnożnik.</li>
-          <li>Masz <strong>3 odrzucenia na kategorię</strong> (wspólne dla 3 blindów).</li>
-          <li>Przed każdym blindem możesz go <strong>pominąć</strong> — odgadnij słowo i zdobądź bonus.</li>
-          <li>Za wygraną blind wchodzisz do <strong>Scriptorium</strong>, by kupić figury retoryczne za atrament.</li>
-          <li>Figury to specjalne bonusy: mnożniki, odkrywanie liter, dodatkowe zagrania i więcej.</li>
+          <li>Klikaj litery, by tworzyć słowa — <strong>dłuższe słowa = wyższy mnożnik</strong>.</li>
+          <li>Możesz dodać dodatkowe litery za słowem — dołożą <strong>surowe chipy</strong> do wyniku.</li>
+          <li>Każda próba ma <strong>próg punktowy</strong> do osiągnięcia w 5 zagraniach.</li>
+          <li>Za wygraną wchodzisz do <strong>Scriptorium</strong> — kup figury retoryczne za atrament ✦.</li>
         </ul>
-        <div class="how-to-play__tiers">
-          <strong>Tiery słów:</strong>
-          <div class="tier-grid">
-            <span class="tier-badge" style="color:#6b7280">2 lit. — Para ×1</span>
-            <span class="tier-badge" style="color:#3b82f6">3 lit. — Trójka ×1+1</span>
-            <span class="tier-badge" style="color:#8b5cf6">4 lit. — Czwórka ×1+2</span>
-            <span class="tier-badge" style="color:#f59e0b">5 lit. — Pięciorak ×1.5</span>
-            <span class="tier-badge" style="color:#f97316">6 lit. — Sześciorak ×2</span>
-            <span class="tier-badge" style="color:#ef4444">7 lit. — Siedmiorak ×2.5</span>
-            <span class="tier-badge" style="color:#ec4899">8 lit. — Ósemka ×3</span>
-          </div>
-        </div>
       </div>
-    </details>
+    </div>
   </div>
 </div>
 
@@ -97,7 +79,7 @@
 <div id="screen-game" class="screen">
   <div class="game-header">
     <div class="game-stat">
-      <span class="stat-label">Blind</span>
+      <span class="stat-label">Próba</span>
       <span class="stat-value" id="g-blind-name">—</span>
     </div>
     <div class="game-stat">
@@ -129,7 +111,6 @@
   <!-- Aktualnie wybrane słowo + tier -->
   <div class="word-preview-wrap">
     <div class="word-preview" id="word-preview">
-      <span class="word-preview__placeholder">Kliknij litery...</span>
     </div>
     <div class="word-tier-badge" id="word-tier-badge"></div>
   </div>
@@ -148,10 +129,6 @@
       Zagraj
     </button>
   </div>
-  <button class="btn btn--ghost btn--chips-only" id="btn-play-chips">
-    Zagraj litery (tylko chipy)
-  </button>
-
   <!-- Licznik zagrań -->
   <div class="plays-indicator" id="plays-indicator">
     <!-- generowane przez ui.js -->

@@ -149,15 +149,8 @@ details summary { cursor: pointer; user-select: none; }
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
-.how-to-play summary {
-  padding: .75rem 1rem;
-  font-weight: 600;
-  color: var(--accent);
-  list-style: none;
-}
-.how-to-play summary::before { content: '? '; }
 .how-to-play__body {
-  padding: 0 1rem 1rem;
+  padding: .75rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   gap: .75rem;
@@ -313,6 +306,7 @@ details summary { cursor: pointer; user-select: none; }
 }
 .figure-offer__title { font-size: 1rem; font-weight: 700; }
 .figure-offer__cards {
+  justify-content: center;
   display: flex;
   gap: .6rem;
   flex-wrap: wrap;
@@ -449,7 +443,6 @@ details summary { cursor: pointer; user-select: none; }
   min-height: 2.2rem;
   align-items: center;
 }
-.word-preview__placeholder { color: var(--text-muted); font-size: .85rem; }
 .preview-tile {
   width: 1.9rem;
   height: 2.1rem;
@@ -520,6 +513,12 @@ details summary { cursor: pointer; user-select: none; }
 }
 .letter-tile.selected .letter-tile__val { color: rgba(0,0,0,.5); }
 
+/* Wyśrodkowanie przycisków bezpośrednio w ekranach */
+.screen > .btn,
+.screen > .game-actions {
+  align-self: center;
+}
+
 /* Game actions */
 .game-actions {
   display: flex;
@@ -528,7 +527,6 @@ details summary { cursor: pointer; user-select: none; }
 }
 .game-actions .btn--danger { flex: 0 0 auto; }
 .game-actions .btn--primary { flex: 0 0 auto; }
-.btn--chips-only { margin-top: .3rem; font-size: .82rem; opacity: .7; align-self: flex-start; }
 
 /* Plays indicator */
 .plays-indicator {
@@ -614,6 +612,7 @@ details summary { cursor: pointer; user-select: none; }
   display: flex;
   flex-wrap: wrap;
   gap: .6rem;
+  justify-content: center;
 }
 
 /* Sell button on active figure */
@@ -697,6 +696,7 @@ details summary { cursor: pointer; user-select: none; }
 .score-popup.show { opacity: 1; }
 .score-popup__value { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
 .score-popup__detail { font-size: .8rem; color: var(--text-muted); }
+.score-popup__extra { font-size: .75rem; color: var(--ink); margin-top: .15rem; }
 .score-popup__word { font-size: 1rem; font-weight: 700; color: var(--accent); }
 .score-popup__tier { font-size: .78rem; font-weight: 600; }
 

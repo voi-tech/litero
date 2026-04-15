@@ -132,7 +132,7 @@ function renderBlindCards() {
     card.innerHTML = `
       <div class="blind-card__header">
         <span class="blind-type-badge ${blind.type}">${
-          blind.type === 'small' ? 'Mały' : blind.type === 'big' ? 'Duży' : 'Boss'
+          blind.type === 'small' ? 'Szkic' : blind.type === 'big' ? 'Esej' : 'Traktat'
         }</span>
         <span class="blind-card__target">Cel: ${blind.targetScore} pkt</span>
       </div>
@@ -145,7 +145,7 @@ function renderBlindCards() {
         </div>
         ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${skipTag.label}</strong></div>` : ''}
         <div class="skip-feedback"></div>
-        <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj blind</button>
+        <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj</button>
       ` : ''}
     `;
 
@@ -307,10 +307,6 @@ function updateWordPreview() {
   preview.innerHTML = '';
 
   if (gameState.selectedIndices.length === 0) {
-    const ph = document.createElement('span');
-    ph.className = 'word-preview__placeholder';
-    ph.textContent = 'Kliknij litery...';
-    preview.appendChild(ph);
     if (tierBadge) tierBadge.textContent = '';
     return;
   }
@@ -343,11 +339,16 @@ export function showScorePopup({ word, result }) {
     ? `${result.chips} chipów (bez mnożnika)`
     : `${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}`;
 
+  const extraLine = result.extraChips > 0
+    ? `<div class="score-popup__extra">+${result.extraChips} chipów z liter</div>`
+    : '';
+
   popup.innerHTML = `
     <div class="score-popup__word">${word.toUpperCase()}</div>
     <div class="score-popup__value">+${result.score}</div>
     <div class="score-popup__tier" style="color:${result.tier.color}">${result.tier.name}</div>
     <div class="score-popup__detail">${detail}</div>
+    ${extraLine}
   `;
 
   popup.classList.add('show');
@@ -379,7 +380,7 @@ export function renderSummaryScreen({ won, inkReward, score }) {
   const blind = gameState.currentBlind;
 
   setEl('summary-result-icon', won ? '🏆' : '💀');
-  setEl('summary-title', won ? 'Blind wygrany!' : 'Blind przegrany');
+  setEl('summary-title', won ? 'Próba zaliczona!' : 'Próba nieudana');
   setEl('sum-score', score.toLocaleString('pl'));
   setEl('sum-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
   setEl('sum-ink', won ? `+${inkReward}` : '0');
