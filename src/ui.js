@@ -1,8 +1,9 @@
 // src/ui.js — zarządzanie ekranami i renderowanie UI
 
 import { emitter } from './eventEmitter.js';
-import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, pickFigure, skipFigurePick } from './game.js';
+import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, sortHand, guessBlindWord } from './game.js';
 import { FIGURES, getFigureCost } from './figures.js';
+import { PASSIVE_BONUSES } from './passiveBonuses.js';
 import { LETTER_VALUES, getTier } from './scoring.js';
 
 // ---- Przełączanie ekranów -------------------------------------------
@@ -43,7 +44,6 @@ export function renderMapScreen() {
   const completedIds = new Set(
     gameState.completedBlinds
       .filter(b => {
-        // kategoria ukończona jeśli wszystkie 3 blindy ukończone lub pominięte
         const catBlinds = gameState.completedBlinds.filter(x => x.categoryId === b.categoryId);
         const cat = CATEGORIES.find(c => c.id === b.categoryId);
         return cat && catBlinds.length >= cat.blinds.length;
@@ -94,23 +94,7 @@ export function renderBlindSelectScreen() {
   const nameEl = document.getElementById('bs-category-name');
   if (nameEl) nameEl.textContent = `${cat.icon} ${cat.name}`;
 
-  const discardsEl = document.getElementById('bs-discards-info');
-  const blindCardsEl = document.getElementById('blind-cards');
-  const figureOfferEl = document.getElementById('figure-offer');
-
-  const inFigurePhase = !!gameState._figurePickPhase;
-
-  // Pokaż figurę najpierw, potem karty prób
-  if (discardsEl) discardsEl.style.display = inFigurePhase ? 'none' : '';
-  if (blindCardsEl) blindCardsEl.style.display = inFigurePhase ? 'none' : '';
-  if (figureOfferEl) figureOfferEl.style.display = inFigurePhase ? '' : 'none';
-
-  if (inFigurePhase) {
-    renderFigureOffer();
-  } else {
-    if (discardsEl) discardsEl.textContent = `Odrzucenia w kategorii: ${gameState.discardsLeft}/3`;
-    renderBlindCards();
-  }
+  renderBlindCards();
 }
 
 function renderBlindCards() {
@@ -129,11 +113,9 @@ function renderBlindCards() {
     const isDone = completedInCat.has(blind.id);
     const isCurrent = idx === gameState.blindIndex && !isDone;
 
-    // Użyj losowo wybranego słowa z puli (jeśli dostępne)
     const activeBlind = gameState._activeBlindWords?.[idx] ?? blind;
     const skipTag = gameState._pendingSkipTags?.[idx];
 
-    // Słowo ukryte dla nieukończonych blindów
     const wordDisplay = isDone
       ? `<span class="word-revealed">${activeBlind.word}</span>`
       : `<span class="word-hidden">${activeBlind.word.split('').map(() => '_').join(' ')}</span>`;
@@ -191,30 +173,6 @@ function renderBlindCards() {
   });
 }
 
-function renderFigureOffer() {
-  const offer = gameState._figureOffer || [];
-  const cardsEl = document.getElementById('figure-offer-cards');
-  if (!cardsEl) return;
-  cardsEl.innerHTML = '';
-
-  offer.forEach(fig => {
-    const cost = getFigureCostDisplay(fig.id);
-    const card = buildFigureCardEl(fig, cost, false);
-    card.addEventListener('click', () => {
-      if (gameState.ink >= cost) {
-        gameState.ink -= cost;
-        pickFigure(fig.id);
-        // _figurePickPhase = false set in pickFigure(); renderBlindSelectScreen() called by 'figurePicked' event
-      }
-    });
-    cardsEl.appendChild(card);
-  });
-}
-
-function getFigureCostDisplay(figureId) {
-  return getFigureCost(figureId, gameState.activeFigures);
-}
-
 // ---- Ekran gry -------------------------------------------------------
 
 export function renderGameScreen() {
@@ -222,13 +180,14 @@ export function renderGameScreen() {
   renderTargetWord();
   renderHand();
   renderPlaysIndicator();
+  renderActiveFigures();
   renderHandFigures();
   updateWordPreview();
+  bindGuessForm();
 }
 
 function updateGameHeader() {
   const blind = gameState.currentBlind;
-  // Pokaż słowo tylko w stopniu odkrytym (reszta jako podkreślenia)
   if (blind) {
     const word = blind.word.toUpperCase();
     const display = word.split('').map((l, i) => gameState.revealedLetters.has(i) ? l : '_').join(' ');
@@ -289,13 +248,45 @@ function renderPlaysIndicator() {
   if (!container) return;
   container.innerHTML = '';
 
-  for (let i = 0; i < 5; i++) {
+  const total = gameState.playsLeft + gameState.playsUsedThisBlind;
+  for (let i = 0; i < total; i++) {
     const dot = document.createElement('div');
     dot.className = 'play-dot' + (i >= gameState.playsLeft ? ' used' : '');
     container.appendChild(dot);
   }
 }
 
+// Aktywne figury pasywne + bonusy — widoczne na ekranie gry
+export function renderActiveFigures() {
+  const container = document.getElementById('active-figures');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (gameState.activeFigures.length === 0 && gameState.passiveBonuses.length === 0) return;
+
+  gameState.activeFigures.forEach(figId => {
+    const fig = FIGURES[figId];
+    if (!fig) return;
+    const card = buildFigureCardEl(fig, 0, false);
+    card.classList.add('active-figure-card');
+    container.appendChild(card);
+  });
+
+  gameState.passiveBonuses.forEach(bonusId => {
+    const bonus = PASSIVE_BONUSES[bonusId];
+    if (!bonus) return;
+    const card = document.createElement('div');
+    card.className = 'figure-card active-figure-card passive-bonus-card';
+    card.innerHTML = `
+      <div class="figure-card__icon">${bonus.icon}</div>
+      <div class="figure-card__name">${bonus.name}</div>
+      <div class="figure-card__desc">${bonus.description}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Jednorazowe figury w ręce — jako pełne karty
 function renderHandFigures() {
   const container = document.getElementById('hand-figures');
   if (!container) return;
@@ -304,14 +295,14 @@ function renderHandFigures() {
   gameState.handFigures.forEach(figId => {
     const fig = FIGURES[figId];
     if (!fig) return;
-    const chip = document.createElement('div');
-    chip.className = 'oneshot-chip';
-    chip.innerHTML = `<span>${fig.icon}</span><span>${fig.name}</span>`;
-    chip.title = fig.description;
-    chip.addEventListener('click', () => {
-      useOneshotFigure(figId);
-    });
-    container.appendChild(chip);
+    const card = buildFigureCardEl(fig, 0, false);
+    card.classList.add('oneshot-hand-card');
+    const useBtn = document.createElement('button');
+    useBtn.className = 'btn btn--ghost btn--sm';
+    useBtn.textContent = 'Użyj';
+    useBtn.addEventListener('click', () => useOneshotFigure(figId));
+    card.appendChild(useBtn);
+    container.appendChild(card);
   });
 }
 
@@ -340,6 +331,31 @@ function updateWordPreview() {
   if (tierBadge) {
     tierBadge.textContent = tier.name;
     tierBadge.style.color = tier.color;
+  }
+}
+
+// ---- Guess form binding --------------------------------------------
+
+let _guessFormBound = false;
+function bindGuessForm() {
+  if (_guessFormBound) return;
+  _guessFormBound = true;
+
+  const btn = document.getElementById('btn-guess');
+  const input = document.getElementById('guess-input');
+
+  if (btn && input) {
+    btn.addEventListener('click', () => {
+      const result = guessBlindWord(input.value);
+      if (!result) {
+        input.classList.add('shake');
+        setTimeout(() => input.classList.remove('shake'), 400);
+        input.value = '';
+      }
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') btn.click();
+    });
   }
 }
 
@@ -405,7 +421,15 @@ export function renderSummaryScreen({ won, inkReward, score }) {
   if (title) title.style.color = won ? 'var(--green)' : 'var(--red)';
 
   const btn = document.getElementById('btn-summary-continue');
-  if (btn) btn.textContent = won ? 'Scriptorium →' : 'Koniec gry';
+  if (btn) {
+    if (!won) {
+      btn.textContent = 'Koniec gry';
+    } else if (gameState._wonByGuess) {
+      btn.textContent = 'Dalej →';
+    } else {
+      btn.textContent = 'Skryptorium →';
+    }
+  }
 }
 
 // ---- Ekran końcowy -------------------------------------------------
@@ -451,6 +475,7 @@ export function updateGameAfterPlay() {
   renderTargetWord();
   renderHand();
   renderPlaysIndicator();
+  renderActiveFigures();
   renderHandFigures();
   updateWordPreview();
 }
@@ -467,20 +492,20 @@ export function buildFigureCardEl(fig, cost, showSell = false) {
   card.className = `figure-card ${fig.rarity === 'legendary' ? 'legendary' : ''}`;
   card.title = fig.linguisticMeaning || '';
 
-  const canAfford = gameState.ink >= cost;
+  const canAfford = cost === 0 || gameState.ink >= cost;
 
   card.innerHTML = `
     <div class="figure-card__icon">${fig.icon}</div>
     <div class="figure-card__name">${fig.name}</div>
     <div class="figure-card__desc">${fig.description}</div>
     <div class="figure-card__cost" style="${!canAfford && !showSell ? 'color:var(--red)' : ''}">
-      ✦ ${cost}
+      ${cost > 0 ? `✦ ${cost}` : ''}
     </div>
     <div class="figure-card__rarity ${fig.rarity}">${
       fig.rarity === 'common' ? 'Pospolita' :
       fig.rarity === 'rare'   ? 'Rzadka'    : 'Legendarna'
     }</div>
-    ${showSell ? `<button class="sell-btn">Sprzedaj (✦${fig.sellValue})</button>` : ''}
+    ${showSell ? `<button class="sell-btn">Sprzedaj (✦${fig.sellValue ?? 1})</button>` : ''}
   `;
 
   return card;
@@ -495,10 +520,5 @@ export function bindBlindSelectEvents() {
         showScreen('screen-map');
       }
     };
-  }
-
-  const skipFigBtn = document.getElementById('btn-skip-figure');
-  if (skipFigBtn) {
-    skipFigBtn.onclick = () => skipFigurePick();
   }
 }

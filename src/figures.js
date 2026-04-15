@@ -51,7 +51,7 @@ export const FIGURES = {
   pleonazm: {
     id: 'pleonazm',
     name: 'Pleonazm',
-    description: 'Figury w Scriptorium tańsze o 1 atrament (min. 1)',
+    description: 'Figury w Skryptorium tańsze o 1 atrament (min. 1)',
     linguisticMeaning: 'Nadmiarowe użycie słów o tym samym znaczeniu',
     type: 'passive',
     rarity: 'common',

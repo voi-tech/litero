@@ -714,6 +714,97 @@ details summary { cursor: pointer; user-select: none; }
   75%      { transform: translateX(4px)  translateY(-4px); }
 }
 
+/* =============================================
+   GAME ACTIONS — równe przyciski
+   ============================================= */
+.game-actions .btn {
+  padding: .65rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* =============================================
+   FORMULARZ ODGADYWANIA
+   ============================================= */
+.guess-form {
+  display: flex;
+  gap: .5rem;
+  margin: .25rem 0;
+}
+#guess-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: .4rem .8rem;
+  font-size: .9rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  outline: none;
+  transition: border-color .2s;
+}
+#guess-input:focus { border-color: var(--accent); }
+#guess-input.shake { animation: shake .35s ease; border-color: var(--red); }
+
+/* =============================================
+   AKTYWNE FIGURY I BONUSY NA EKRANIE GRY
+   ============================================= */
+.active-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  justify-content: center;
+}
+
+.active-figure-card {
+  min-width: 90px !important;
+  max-width: 120px !important;
+  padding: .4rem .5rem !important;
+  cursor: default !important;
+  pointer-events: none;
+  opacity: .9;
+}
+.active-figure-card .figure-card__desc { font-size: .66rem; }
+.active-figure-card .figure-card__cost { display: none; }
+.active-figure-card .figure-card__rarity { display: none; }
+
+/* Bonus pasywny */
+.passive-bonus-card { border-color: var(--green) !important; }
+.figure-card__rarity.passive { color: var(--green); }
+.passive-bonus-title { color: var(--green) !important; }
+.passive-bonus-subtitle { font-size: .8rem; color: var(--text-muted); margin-bottom: .3rem; }
+
+/* =============================================
+   FIGURY JEDNORAZOWE W RĘCE (karty)
+   ============================================= */
+.oneshot-hand-card {
+  border-color: var(--gold) !important;
+  cursor: default;
+  pointer-events: none;
+  min-width: 110px;
+  max-width: 140px;
+}
+.oneshot-hand-card .btn {
+  pointer-events: all;
+  margin-top: .3rem;
+  align-self: stretch;
+}
+
+/* =============================================
+   SCRIPTORIUM — sekcja bonusu pasywnego
+   ============================================= */
+#scr-passive-section {
+  background: var(--bg3);
+  border: 1px solid var(--green);
+  border-radius: var(--radius-lg);
+  padding: .8rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+
 /* Tag notification */
 .tag-toast {
   position: fixed;

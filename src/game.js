@@ -2,10 +2,10 @@
 
 import { emitter } from './eventEmitter.js';
 import categoriesData from '../data/categories.json';
-import { buildHand, replenishHand } from './letters.js';
+import { buildHand, replenishHand, drawLetters, shufflePool, buildPool } from './letters.js';
 import { loadDictionary, isValidWord } from './dictionary.js';
-import { scoreWord, calcInkReward, LETTER_VALUES } from './scoring.js';
-import { applyFigureHooks, FIGURES, getRandomFigures, getFigureSellValue, setReplenishHand } from './figures.js';
+import { scoreWord, calcInkReward, LETTER_VALUES, getTier, WORD_TIERS } from './scoring.js';
+import { applyFigureHooks, FIGURES, getFigureSellValue, setReplenishHand } from './figures.js';
 
 // Podpięcie replenishHand pod figures.js (unikamy circular import)
 setReplenishHand(replenishHand);
@@ -23,20 +23,20 @@ export const gameState = {
   completedBlinds: [],    // [{ categoryId, blindId, skipped, score }]
 
   // Ekonomia
-  ink: 3,
+  ink: 0,
 
   // Aktualny blind
   currentBlind: null,
   currentCategory: null,
   runningScore: 0,
   playsLeft: 5,
-  discardsLeft: 3,        // 3 per KATEGORIA (współdzielone przez 3 blindy)
+  discardsLeft: 3,
   playsUsedThisBlind: 0,
 
   // Ręka
   hand: [],
   letterPool: [],
-  selectedIndices: [],    // indeksy zaznaczonych liter w ręce
+  selectedIndices: [],
 
   // Odkryte litery docelowego słowa (Set indeksów)
   revealedLetters: new Set(),
@@ -59,9 +59,6 @@ export const gameState = {
   // Tagi (bonusy ze skipowania)
   pendingTags: [],
 
-  // Oferta figur (ekran blind-select)
-  _figureOffer: [],
-
   // Potasowana kolejność kategorii (nowa per rozgrywka)
   shuffledCategories: [],
 
@@ -70,6 +67,11 @@ export const gameState = {
 
   // Pre-generowane tagi skip (jedna per blind, losowane przy enterCategory)
   _pendingSkipTags: [],
+
+  // Bonusy pasywne
+  passiveBonuses: [],
+  hasDefeatedBoss: false,
+  passiveBonusTaken: false,
 };
 
 // ---- Init ---------------------------------------------------
@@ -89,7 +91,7 @@ export function startGame() {
   gameState.categoryIndex = 0;
   gameState.blindIndex = 0;
   gameState.completedBlinds = [];
-  gameState.ink = 3;
+  gameState.ink = 0;
   gameState.activeFigures = [];
   gameState.handFigures = [];
   gameState.totalScore = 0;
@@ -98,6 +100,9 @@ export function startGame() {
   gameState.hand = hand;
   gameState.letterPool = pool;
   gameState.shuffledCategories = [...CATEGORIES].sort(() => Math.random() - 0.5);
+  gameState.passiveBonuses = [];
+  gameState.hasDefeatedBoss = false;
+  gameState.passiveBonusTaken = false;
 
   emitter.emit('gameStarted', { state: gameState });
 }
@@ -107,11 +112,8 @@ export function startGame() {
 export function enterCategory(categoryIndex) {
   gameState.categoryIndex = categoryIndex;
   gameState.blindIndex = 0;
-  gameState.discardsLeft = 3;
   gameState.currentCategory = gameState.shuffledCategories[categoryIndex];
   gameState.phase = 'blind-select';
-  gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
-  gameState._figurePickPhase = true;
 
   // Losuj słowa blindów z puli
   gameState._activeBlindWords = gameState.currentCategory.blinds.map(blind => {
@@ -134,7 +136,6 @@ export function trySkipBlind(blindIndex, attempt) {
   const correct = attempt.trim().toUpperCase() === blind.word.toUpperCase();
 
   if (correct) {
-    // Pominięto — użyj pre-generowanego taga
     const tag = gameState._pendingSkipTags[blindIndex];
     gameState.pendingTags.push(tag);
     applyTag(tag);
@@ -145,10 +146,8 @@ export function trySkipBlind(blindIndex, attempt) {
       score: 0,
     });
     emitter.emit('blindSkipped', { blind, tag, state: gameState });
-    // Przejdź do następnego blinda lub zakończ kategorię
     advanceAfterBlind(true);
   } else {
-    // Niepoprawna próba — uruchom grę tego blinda
     startBlind(blindIndex);
   }
   return correct;
@@ -162,14 +161,19 @@ export function startBlind(blindIndex) {
   gameState.currentBlind = blind;
   gameState.runningScore = 0;
   gameState.playsLeft = 5;
+  gameState.discardsLeft = 3;
   gameState.playsUsedThisBlind = 0;
   gameState.selectedIndices = [];
   gameState.revealedLetters = new Set();
   gameState.categoryStreak = 0;
   gameState._figureState = {};
 
-  // Hooki onBlindStart (hiperbola, litotes, inicjal, bezblednik)
+  // Hooki onBlindStart (hiperbola, litotes, bezblednik)
   applyFigureHooks(gameState.activeFigures, 'onBlindStart', gameState);
+
+  // Bonusy pasywne: pergamin (+1 odrzucenie), manuskrypt (+1 zagranie)
+  if (gameState.passiveBonuses.includes('pergamin')) gameState.discardsLeft += 1;
+  if (gameState.passiveBonuses.includes('manuskrypt')) gameState.playsLeft += 1;
 
   gameState.phase = 'game';
   emitter.emit('blindStarted', { blind, state: gameState });
@@ -189,6 +193,110 @@ export function toggleLetter(index) {
   emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
 }
 
+// ---- Sortowanie liter ----------------------------------------
+
+export function sortHand() {
+  gameState.hand = [...gameState.hand].sort((a, b) => a.localeCompare(b, 'pl'));
+  gameState.selectedIndices = [];
+  emitter.emit('handSorted', { state: gameState });
+}
+
+// ---- Greedy word sequence detection -------------------------
+
+function findWordSequence(letters) {
+  const segments = [];
+  let i = 0;
+  while (i < letters.length) {
+    let found = false;
+    for (let len = letters.length - i; len >= 2; len--) {
+      const candidate = letters.slice(i, i + len).join('');
+      if (isValidWord(candidate)) {
+        segments.push({ word: candidate, start: i, end: i + len });
+        i += len;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      segments.push({ word: null, letter: letters[i], idx: i });
+      i++;
+    }
+  }
+  return segments;
+}
+
+// ---- Scoring dla jednego lub wielu słów ----------------------
+
+function scorePlay(validSegments, extraSegments, currentCategory, activeFigures) {
+  const passiveBonuses = gameState.passiveBonuses;
+  const figureState = {
+    emfazaActive: gameState._figureState.emfazaActive,
+    synekdochaActive: gameState._figureState.synekdochaActive,
+    komboBonus: activeFigures.includes('kombo') && gameState.categoryStreak >= 2,
+    pioro: passiveBonuses.includes('pioro'),
+    iluminacja: passiveBonuses.includes('iluminacja'),
+    folio: passiveBonuses.includes('folio'),
+  };
+
+  // Chips z liter wszystkich słów
+  const polishLetters = ['Ą','Ć','Ę','Ł','Ń','Ó','Ś','Ź','Ż'];
+  let totalChips = 0;
+  let totalWordLen = 0;
+  let totalCategoryBonus = 0;
+  let totalPolishCount = 0;
+
+  for (const seg of validSegments) {
+    const letters = seg.word.toUpperCase().split('');
+    totalWordLen += letters.length;
+    for (let i = 0; i < letters.length; i++) {
+      let val = LETTER_VALUES[letters[i]] ?? 1;
+      if (activeFigures.includes('aliteracja')) {
+        if (letters.filter(l => l === letters[i]).length > 1) val *= 2;
+      }
+      if (i === 0 && activeFigures.includes('inicjal')) val *= 2;
+      totalChips += val;
+    }
+    totalPolishCount += letters.filter(l => polishLetters.includes(l)).length;
+    if (currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase())) {
+      totalCategoryBonus += figureState.iluminacja ? 5 : 3;
+    }
+  }
+
+  // Tier na podstawie łącznej długości słów
+  const tier = getTier(totalWordLen) || WORD_TIERS[0];
+  totalChips = Math.floor(totalChips * tier.chipsMultiplier);
+
+  if (figureState.synekdochaActive) totalChips *= 2;
+  if (figureState.pioro) totalChips *= 2;
+
+  // Mnożnik
+  let mult = 1 + tier.multBonus + totalCategoryBonus;
+  if (activeFigures.includes('polonizm')) mult += totalPolishCount * 2;
+  if (figureState.komboBonus) mult += 5;
+  if (figureState.folio && totalWordLen >= 6) mult = Math.round(mult * 1.5);
+  if (figureState.emfazaActive) mult *= 2;
+  if (activeFigures.includes('hiperbola') && mult < 2) mult = 2;
+
+  const baseScore = Math.floor(totalChips * mult);
+
+  // Surowe znaki z dodatkowych liter
+  let extraChips = 0;
+  for (const seg of extraSegments) {
+    extraChips += LETTER_VALUES[seg.letter.toUpperCase()] ?? 1;
+  }
+
+  return {
+    chips: totalChips,
+    mult,
+    score: baseScore + extraChips,
+    tier,
+    categoryBonus: totalCategoryBonus,
+    figureBonus: 0,
+    extraChips,
+    words: validSegments.map(s => s.word),
+  };
+}
+
 // ---- Zagranie słowa -----------------------------------------
 
 export function playWord() {
@@ -201,46 +309,15 @@ export function playWord() {
   }
 
   const wordLetters = selectedIndices.map(i => hand[i]);
-  const fullWord = wordLetters.join('');
+  const segments = findWordSequence(wordLetters);
+  const validSegments = segments.filter(s => s.word);
+  const extraSegments = segments.filter(s => !s.word);
 
-  // Szukaj najdłuższego poprawnego prefiksu zaznaczenia (jak w Balatro — auto-detect ręki)
-  let validWord = null;
-  let wordEndIdx = -1;
-
-  if (selectedIndices.length >= 2 && isValidWord(fullWord)) {
-    validWord = fullWord;
-    wordEndIdx = selectedIndices.length;
-  } else {
-    for (let k = selectedIndices.length - 1; k >= 2; k--) {
-      const prefix = wordLetters.slice(0, k).join('');
-      if (isValidWord(prefix)) {
-        validWord = prefix;
-        wordEndIdx = k;
-        break;
-      }
-    }
-  }
-
-  if (validWord) {
-    // --- Słowo znalezione: score słowa + surowe chipy z dodatkowych liter ---
-    const extraIndices = selectedIndices.slice(wordEndIdx);
-
-    const komboBonus = activeFigures.includes('kombo') && gameState.categoryStreak >= 2;
-    const result = scoreWord(validWord, currentCategory.id, currentCategory.words, activeFigures, {
-      emfazaActive: gameState._figureState.emfazaActive,
-      synekdochaActive: gameState._figureState.synekdochaActive,
-      komboBonus,
-    });
+  if (validSegments.length > 0) {
+    // --- Słowa znalezione ---
+    const result = scorePlay(validSegments, extraSegments, currentCategory, activeFigures);
     gameState._figureState.emfazaActive = false;
     gameState._figureState.synekdochaActive = false;
-
-    // Surowe chipy z liter poza słowem
-    let extraChips = 0;
-    for (const idx of extraIndices) {
-      extraChips += (LETTER_VALUES[hand[idx].toUpperCase()] ?? 1);
-    }
-    result.score += extraChips;
-    result.extraChips = extraChips;
 
     if (result.categoryBonus > 0) gameState.categoryStreak += 1;
     else gameState.categoryStreak = 0;
@@ -255,14 +332,17 @@ export function playWord() {
     gameState.letterPool = newPool;
     gameState.selectedIndices = [];
 
-    gameState.wordsPlayedThisRun.push({ word: validWord, score: result.score, categoryBonus: result.categoryBonus > 0 });
+    for (const seg of validSegments) {
+      const isCatWord = currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase());
+      gameState.wordsPlayedThisRun.push({ word: seg.word, score: 0, categoryBonus: isCatWord });
+    }
     updateRevealedLetters();
 
-    emitter.emit('wordPlayed', { word: validWord, result, state: gameState });
+    const displayWord = validSegments.map(s => s.word).join(' + ');
+    emitter.emit('wordPlayed', { word: displayWord, result, state: gameState });
 
   } else {
-    // --- Brak słowa: surowe chipy za wszystkie zaznaczone litery ---
-    // Bezbłędnik: pierwsze pudło nie kosztuje zagrania
+    // --- Brak słowa: surowe znaki ---
     if (activeFigures.includes('bezblednik') && !gameState._figureState.bezblednikUsed) {
       gameState._figureState.bezblednikUsed = true;
       emitter.emit('wordRejected', { reason: 'invalid', bezblednik: true });
@@ -272,11 +352,11 @@ export function playWord() {
     }
 
     let chips = 0;
+    const fullWord = wordLetters.join('');
     for (const idx of selectedIndices) {
       chips += (LETTER_VALUES[hand[idx].toUpperCase()] ?? 1);
     }
-    const score = chips;
-    gameState.runningScore += score;
+    gameState.runningScore += chips;
     gameState.playsLeft -= 1;
     gameState.playsUsedThisBlind += 1;
     if (activeFigures.includes('skryba')) gameState.ink += 2;
@@ -285,12 +365,12 @@ export function playWord() {
     gameState.hand = newHand;
     gameState.letterPool = newPool;
     gameState.selectedIndices = [];
-    gameState.wordsPlayedThisRun.push({ word: fullWord, score, categoryBonus: false });
+    gameState.wordsPlayedThisRun.push({ word: fullWord, score: chips, categoryBonus: false });
     updateRevealedLetters();
 
     emitter.emit('wordPlayed', {
       word: fullWord,
-      result: { score, chips, mult: 1, tier: { name: 'Litery', color: '#6b7280' }, categoryBonus: 0, lettersOnly: true },
+      result: { score: chips, chips, mult: 1, tier: { name: 'Litery', color: '#6b7280' }, categoryBonus: 0, lettersOnly: true },
       state: gameState,
     });
   }
@@ -309,6 +389,17 @@ function updateRevealedLetters() {
   }
 }
 
+// ---- Odgadywanie hasła w trakcie rundy ----------------------
+
+export function guessBlindWord(attempt) {
+  if (gameState.phase !== 'game') return false;
+  const correct = attempt.trim().toUpperCase() === gameState.currentBlind.word.toUpperCase();
+  if (correct) {
+    endBlind(true, { wonByGuess: true });
+  }
+  return correct;
+}
+
 // ---- Odrzucenie liter ---------------------------------------
 
 export function discardLetters() {
@@ -322,13 +413,25 @@ export function discardLetters() {
     return;
   }
 
-  const { hand: newHand, pool: newPool } = replenishHand(
-    gameState.hand,
-    gameState.selectedIndices,
-    gameState.letterPool
-  );
-  gameState.hand = newHand;
-  gameState.letterPool = newPool;
+  const currentSize = gameState.hand.length;
+  const discardCount = gameState.selectedIndices.length;
+  const sizeAfterRemoval = currentSize - discardCount;
+  const targetSize = Math.min(8, currentSize); // nie uzupełniaj ponad 8
+  const refillCount = Math.max(0, targetSize - sizeAfterRemoval);
+
+  // Usuń odrzucone litery z ręki
+  const newHand = gameState.hand.filter((_, i) => !gameState.selectedIndices.includes(i));
+
+  // Dobierz tylko refillCount liter z puli
+  let pool = gameState.letterPool;
+  if (pool.length < refillCount) {
+    pool = [...pool, ...shufflePool(buildPool())];
+  }
+  const drawn = pool.slice(0, refillCount);
+  const remaining = pool.slice(refillCount);
+
+  gameState.hand = [...newHand, ...drawn];
+  gameState.letterPool = remaining;
   gameState.selectedIndices = [];
   gameState.discardsLeft -= 1;
 
@@ -354,14 +457,15 @@ export function useOneshotFigure(figureId) {
 
 // ---- Koniec blinda ------------------------------------------
 
-function endBlind(won) {
+function endBlind(won, opts = {}) {
   gameState.phase = 'summary';
 
   // Atrament za wygranie
   let inkReward = 0;
   if (won) {
     inkReward = calcInkReward(gameState.playsUsedThisBlind, 5, true);
-    // Hook perfekcjonista
+    if (gameState.passiveBonuses.includes('kalamarz')) inkReward += 2;
+
     inkReward = applyFigureHooks(
       gameState.activeFigures,
       'onBlindEnd',
@@ -377,15 +481,19 @@ function endBlind(won) {
       skipped: false,
       score: gameState.runningScore,
     });
+
+    // Sprawdź czy boss pokonany
+    if (gameState.currentBlind.type === 'boss') {
+      gameState.hasDefeatedBoss = true;
+    }
   }
 
   gameState._summaryWon = won;
-  emitter.emit('blindEnded', { won, inkReward, score: gameState.runningScore, state: gameState });
-
-  // Dalszy flow obsługuje btn-summary-continue w main.js
+  gameState._wonByGuess = opts.wonByGuess || false;
+  emitter.emit('blindEnded', { won, inkReward, score: gameState.runningScore, wonByGuess: opts.wonByGuess, state: gameState });
 }
 
-// Po zamknięciu Scriptorium
+// Po zamknięciu Skryptorium
 export function closeScriptorium() {
   advanceAfterBlind(false);
 }
@@ -395,19 +503,14 @@ function advanceAfterBlind(skipped) {
   const nextBlindIndex = gameState.blindIndex + 1;
 
   if (nextBlindIndex < category.blinds.length) {
-    // Następny blind w tej kategorii
     gameState.blindIndex = nextBlindIndex;
     gameState.phase = 'blind-select';
-    gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
-    gameState._figurePickPhase = true;
     emitter.emit('nextBlind', { state: gameState });
   } else {
-    // Kategoria ukończona
     const nextCategoryIndex = gameState.categoryIndex + 1;
     if (nextCategoryIndex < gameState.shuffledCategories.length) {
       gameState.categoryIndex = nextCategoryIndex;
       gameState.blindIndex = 0;
-      gameState.discardsLeft = 3;
       gameState.phase = 'map';
       emitter.emit('categoryCompleted', { state: gameState });
     } else {
@@ -429,7 +532,7 @@ export function endGame(victory) {
   emitter.emit('gameOver', { victory, state: gameState });
 }
 
-// ---- Figury: dodawanie/usuwanie (używane przez Scriptorium) --
+// ---- Figury: dodawanie/usuwanie (używane przez Skryptorium) --
 
 export function addFigure(figureId) {
   const fig = FIGURES[figureId];
@@ -455,27 +558,17 @@ export function removeFigure(figureId) {
   return false;
 }
 
-// ---- Wybór figury przed blindem -----------------------------
+// ---- Bonusy pasywne -----------------------------------------
 
-export function pickFigure(figureId) {
-  const success = addFigure(figureId);
-  if (success) {
-    gameState._figurePickPhase = false;
-    emitter.emit('figurePicked', { figureId, state: gameState });
-  }
-  return success;
-}
-
-export function skipFigurePick() {
-  gameState._figurePickPhase = false;
-  emitter.emit('figurePickSkipped', { state: gameState });
+export function pickPassiveBonus(bonusId) {
+  if (gameState.passiveBonusTaken) return false;
+  gameState.passiveBonuses.push(bonusId);
+  gameState.passiveBonusTaken = true;
+  emitter.emit('passiveBonusPicked', { bonusId, state: gameState });
+  return true;
 }
 
 // ---- Helpers ------------------------------------------------
-
-function anteTier() {
-  return Math.floor(gameState.categoryIndex / 2) + 1;
-}
 
 function randomTag() {
   const tags = [

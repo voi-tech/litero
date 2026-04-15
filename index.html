@@ -29,7 +29,7 @@
           <li>Klikaj litery, by tworzyć słowa — <strong>dłuższe słowa = wyższy mnożnik</strong>.</li>
           <li>Możesz dodać dodatkowe litery za słowem — dołożą <strong>surowe znaki</strong> do wyniku.</li>
           <li>Każda próba ma <strong>próg punktowy</strong> do osiągnięcia w 5 zagraniach.</li>
-          <li>Za wygraną wchodzisz do <strong>Scriptorium</strong> — kup figury retoryczne za atrament ✦.</li>
+          <li>Za wygraną wchodzisz do <strong>Skryptorium</strong> — kup figury retoryczne za atrament ✦.</li>
         </ul>
       </div>
     </div>
@@ -41,7 +41,7 @@
   <div class="screen-header">
     <h2>Wybierz kategorię</h2>
     <div class="ink-display" id="map-ink">
-      <span class="ink-icon">✦</span><span id="map-ink-value">3</span>
+      <span class="ink-icon">✦</span><span id="map-ink-value">0</span>
     </div>
   </div>
   <div class="category-map" id="category-map">
@@ -54,24 +54,14 @@
   <div class="screen-header">
     <button class="btn btn--ghost btn--sm" id="blind-back-btn">&#8592; Mapa</button>
     <div class="ink-display">
-      <span class="ink-icon">✦</span><span id="bs-ink-value">3</span>
+      <span class="ink-icon">✦</span><span id="bs-ink-value">0</span>
     </div>
   </div>
 
   <h2 id="bs-category-name" class="section-title"></h2>
-  <p class="section-sub" id="bs-discards-info"></p>
 
   <div class="blind-cards" id="blind-cards">
     <!-- generowane przez ui.js -->
-  </div>
-
-  <!-- Oferta figury -->
-  <div class="figure-offer" id="figure-offer">
-    <h3 class="figure-offer__title">Wybierz figurę</h3>
-    <div class="figure-offer__cards" id="figure-offer-cards">
-      <!-- generowane przez ui.js -->
-    </div>
-    <button class="btn btn--ghost" id="btn-skip-figure">Zagraj bez figury</button>
   </div>
 </div>
 
@@ -89,7 +79,7 @@
     </div>
     <div class="game-stat">
       <span class="stat-label">Atrament</span>
-      <span class="stat-value ink-val" id="g-ink">3</span>
+      <span class="stat-value ink-val" id="g-ink">0</span>
     </div>
   </div>
 
@@ -108,6 +98,15 @@
     <p class="blind-definition" id="g-definition"></p>
   </div>
 
+  <!-- Formularz odgadywania hasła -->
+  <div class="guess-form" id="guess-form">
+    <input id="guess-input" type="text" placeholder="Odgadnij hasło..." maxlength="30" autocomplete="off" />
+    <button class="btn btn--ghost btn--sm" id="btn-guess">Potwierdź</button>
+  </div>
+
+  <!-- Aktywne figury pasywne -->
+  <div class="active-figures" id="active-figures"></div>
+
   <!-- Aktualnie wybrane słowo + tier -->
   <div class="word-preview-wrap">
     <div class="word-preview" id="word-preview">
@@ -125,9 +124,10 @@
     <button class="btn btn--danger" id="btn-discard">
       Odrzuć (<span id="g-discards">3</span>)
     </button>
-    <button class="btn btn--primary btn--large" id="btn-play">
+    <button class="btn btn--primary" id="btn-play">
       Zagraj
     </button>
+    <button class="btn btn--ghost" id="btn-sort">A→Z</button>
   </div>
   <!-- Licznik zagrań -->
   <div class="plays-indicator" id="plays-indicator">
@@ -163,12 +163,12 @@
   </div>
 </div>
 
-<!-- ===== EKRAN SCRIPTORIUM ===== -->
+<!-- ===== EKRAN SKRYPTORIUM ===== -->
 <div id="screen-scriptorium" class="screen">
   <div class="screen-header">
-    <h2>Scriptorium</h2>
+    <h2>Skryptorium</h2>
     <div class="ink-display">
-      <span class="ink-icon">✦</span><span id="scr-ink-value">3</span>
+      <span class="ink-icon">✦</span><span id="scr-ink-value">0</span>
     </div>
   </div>
 
@@ -179,6 +179,15 @@
       <div class="figure-grid" id="scr-shop-grid">
         <!-- generowane przez scriptorium.js -->
       </div>
+
+      <!-- Bonus pasywny (po pokonaniu bossa) -->
+      <div id="scr-passive-section" style="display:none">
+        <h3 class="passive-bonus-title">✨ Bonus pasywny</h3>
+        <p class="passive-bonus-subtitle">Wybierz jeden darmowy bonus aktywny do końca gry</p>
+        <div id="scr-passive-card"></div>
+      </div>
+
+      <button class="btn btn--primary" id="btn-scr-close">Następna strona</button>
     </section>
 
     <!-- Aktywne figury gracza -->
@@ -189,8 +198,6 @@
       </div>
     </section>
   </div>
-
-  <button class="btn btn--primary" id="btn-scr-close">Zamknij Scriptorium</button>
 </div>
 
 <!-- ===== EKRAN KOŃCOWY ===== -->
