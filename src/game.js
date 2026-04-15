@@ -111,6 +111,7 @@ export function enterCategory(categoryIndex) {
   gameState.currentCategory = gameState.shuffledCategories[categoryIndex];
   gameState.phase = 'blind-select';
   gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
+  gameState._figurePickPhase = true;
 
   // Losuj słowa blindów z puli
   gameState._activeBlindWords = gameState.currentCategory.blinds.map(blind => {
@@ -128,6 +129,8 @@ export function enterCategory(categoryIndex) {
 
 export function trySkipBlind(blindIndex, attempt) {
   const blind = gameState._activeBlindWords[blindIndex];
+  if (blind.type === 'boss') return false; // Traktat nie może być pominięty
+
   const correct = attempt.trim().toUpperCase() === blind.word.toUpperCase();
 
   if (correct) {
@@ -394,6 +397,7 @@ function advanceAfterBlind(skipped) {
     gameState.blindIndex = nextBlindIndex;
     gameState.phase = 'blind-select';
     gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
+    gameState._figurePickPhase = true;
     emitter.emit('nextBlind', { state: gameState });
   } else {
     // Kategoria ukończona
@@ -454,13 +458,14 @@ export function removeFigure(figureId) {
 export function pickFigure(figureId) {
   const success = addFigure(figureId);
   if (success) {
+    gameState._figurePickPhase = false;
     emitter.emit('figurePicked', { figureId, state: gameState });
   }
   return success;
 }
 
 export function skipFigurePick() {
-  gameState.ink += 2;
+  gameState._figurePickPhase = false;
   emitter.emit('figurePickSkipped', { state: gameState });
 }
 

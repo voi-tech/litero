@@ -95,10 +95,22 @@ export function renderBlindSelectScreen() {
   if (nameEl) nameEl.textContent = `${cat.icon} ${cat.name}`;
 
   const discardsEl = document.getElementById('bs-discards-info');
-  if (discardsEl) discardsEl.textContent = `Odrzucenia w kategorii: ${gameState.discardsLeft}/3`;
+  const blindCardsEl = document.getElementById('blind-cards');
+  const figureOfferEl = document.getElementById('figure-offer');
 
-  renderBlindCards();
-  renderFigureOffer();
+  const inFigurePhase = !!gameState._figurePickPhase;
+
+  // Pokaż figurę najpierw, potem karty prób
+  if (discardsEl) discardsEl.style.display = inFigurePhase ? 'none' : '';
+  if (blindCardsEl) blindCardsEl.style.display = inFigurePhase ? 'none' : '';
+  if (figureOfferEl) figureOfferEl.style.display = inFigurePhase ? '' : 'none';
+
+  if (inFigurePhase) {
+    renderFigureOffer();
+  } else {
+    if (discardsEl) discardsEl.textContent = `Odrzucenia w kategorii: ${gameState.discardsLeft}/3`;
+    renderBlindCards();
+  }
 }
 
 function renderBlindCards() {
@@ -139,12 +151,14 @@ function renderBlindCards() {
       <div class="blind-card__word">${wordDisplay}</div>
       <div class="blind-card__definition">${activeBlind.definition}</div>
       ${isCurrent ? `
-        <div class="skip-form">
-          <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
-          <button class="btn btn--primary btn--sm">Pomiń</button>
-        </div>
-        ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${skipTag.label}</strong></div>` : ''}
-        <div class="skip-feedback"></div>
+        ${blind.type !== 'boss' ? `
+          <div class="skip-form">
+            <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
+            <button class="btn btn--primary btn--sm">Pomiń</button>
+          </div>
+          ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${skipTag.label}</strong></div>` : ''}
+          <div class="skip-feedback"></div>
+        ` : `<p class="boss-no-skip">Traktat nie może być pominięty</p>`}
         <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj</button>
       ` : ''}
     `;
@@ -155,17 +169,19 @@ function renderBlindCards() {
       const playBtn = card.querySelector('.btn--ghost');
       const feedback = card.querySelector('.skip-feedback');
 
-      skipBtn.addEventListener('click', () => {
-        const attempt = input.value;
-        const ok = trySkipBlind(idx, attempt);
-        if (!ok) {
-          feedback.textContent = 'Niepoprawnie — zaczynamy grę!';
-          feedback.className = 'skip-feedback err';
-        }
-      });
+      if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+          const attempt = input.value;
+          const ok = trySkipBlind(idx, attempt);
+          if (!ok) {
+            feedback.textContent = 'Niepoprawnie — zaczynamy grę!';
+            feedback.className = 'skip-feedback err';
+          }
+        });
+      }
 
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') skipBtn.click();
+      if (input) input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') skipBtn?.click();
       });
 
       playBtn.addEventListener('click', () => startBlind(idx));
@@ -188,7 +204,7 @@ function renderFigureOffer() {
       if (gameState.ink >= cost) {
         gameState.ink -= cost;
         pickFigure(fig.id);
-        renderBlindSelectScreen();
+        // _figurePickPhase = false set in pickFigure(); renderBlindSelectScreen() called by 'figurePicked' event
       }
     });
     cardsEl.appendChild(card);

@@ -293,6 +293,7 @@ details summary { cursor: pointer; user-select: none; }
 }
 .skip-feedback.ok  { color: var(--green); }
 .skip-feedback.err { color: var(--red); }
+.boss-no-skip { font-size: .8rem; color: var(--text-muted); margin: .4rem 0; font-style: italic; }
 
 /* Oferta figury */
 .figure-offer {

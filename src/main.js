@@ -136,7 +136,6 @@ function bindGameEvents() {
 
   emitter.on('figurePickSkipped', () => {
     renderBlindSelectScreen();
-    showToast('+2 atrament', 'var(--ink)');
   });
 }
 
