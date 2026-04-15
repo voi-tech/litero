@@ -46,7 +46,8 @@ export function scoreWord(word, categoryId, categoryWords, activeFigures = [], f
 
   // ---- Chips (litery) ----------------------------------------
   let chips = 0;
-  for (const letter of letters) {
+  for (let i = 0; i < letters.length; i++) {
+    const letter = letters[i];
     let val = getLetterValue(letter);
 
     // Aliteracja: powtarzająca się litera w słowie warta 2×
@@ -55,10 +56,20 @@ export function scoreWord(word, categoryId, categoryWords, activeFigures = [], f
       if (count > 1) val *= 2;
     }
 
+    // Inicjał: pierwsza litera słowa daje 2× znaki
+    if (i === 0 && activeFigures.includes('inicjal')) {
+      val *= 2;
+    }
+
     chips += val;
   }
 
   chips = Math.floor(chips * tier.chipsMultiplier);
+
+  // Synekdocha: wszystkie litery następnego słowa ×2
+  if (figureState.synekdochaActive) {
+    chips *= 2;
+  }
 
   // ---- Mnożnik -----------------------------------------------
   let mult = 1 + tier.multBonus;

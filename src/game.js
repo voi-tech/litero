@@ -228,9 +228,11 @@ export function playWord() {
     const komboBonus = activeFigures.includes('kombo') && gameState.categoryStreak >= 2;
     const result = scoreWord(validWord, currentCategory.id, currentCategory.words, activeFigures, {
       emfazaActive: gameState._figureState.emfazaActive,
+      synekdochaActive: gameState._figureState.synekdochaActive,
       komboBonus,
     });
     gameState._figureState.emfazaActive = false;
+    gameState._figureState.synekdochaActive = false;
 
     // Surowe chipy z liter poza słowem
     let extraChips = 0;

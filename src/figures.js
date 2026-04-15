@@ -99,20 +99,15 @@ export const FIGURES = {
   inicjal: {
     id: 'inicjal',
     name: 'Inicjał',
-    description: 'Pierwsza litera docelowego słowa odkryta od razu',
+    description: 'Pierwsza litera każdego zagranego słowa liczy się 2×',
     linguisticMeaning: 'Ozdobna pierwsza litera tekstu',
     type: 'passive',
     rarity: 'common',
     cost: 3,
     icon: 'I',
     sellValue: 1,
-    hooks: {
-      onBlindStart: (state) => {
-        if (state.currentBlind && state.revealedLetters !== undefined) {
-          state.revealedLetters.add(0);
-        }
-      },
-    },
+    hooks: {},
+    // efekt obsługiwany w scoring.js: pierwsza litera słowa daje val*2 znaków
   },
 
   kombo: {
@@ -186,7 +181,7 @@ export const FIGURES = {
   synekdocha: {
     id: 'synekdocha',
     name: 'Synekdocha',
-    description: 'Odkryj 2 losowe litery docelowego słowa',
+    description: 'Następne słowo: każda litera warta 2× znaków',
     linguisticMeaning: 'Użycie części zamiast całości lub odwrotnie',
     type: 'oneshot',
     rarity: 'rare',
@@ -195,17 +190,8 @@ export const FIGURES = {
     sellValue: 2,
     hooks: {
       onUse: (state) => {
-        const word = state.currentBlind?.word || '';
-        const hidden = [];
-        for (let i = 0; i < word.length; i++) {
-          if (!state.revealedLetters.has(i)) hidden.push(i);
-        }
-        // Odkryj do 2 losowych
-        for (let r = 0; r < Math.min(2, hidden.length); r++) {
-          const pick = Math.floor(Math.random() * hidden.length);
-          state.revealedLetters.add(hidden.splice(pick, 1)[0]);
-        }
-        return { message: 'Odkryto 2 litery!' };
+        state._figureState.synekdochaActive = true;
+        return { message: 'Następne słowo: litery ×2 znaków!' };
       },
     },
   },
@@ -252,7 +238,7 @@ export const FIGURES = {
   akrostych: {
     id: 'akrostych',
     name: 'Akrostych',
-    description: 'Odkryj 1. i ostatnią literę + dobierz 3 nowe litery',
+    description: 'Dobierz 3 dodatkowe litery do ręki',
     linguisticMeaning: 'Ukryty tekst w pierwszych literach wersów',
     type: 'oneshot',
     rarity: 'common',
@@ -261,27 +247,16 @@ export const FIGURES = {
     sellValue: 1,
     hooks: {
       onUse: (state) => {
-        const word = state.currentBlind?.word || '';
-        if (word.length > 0) {
-          state.revealedLetters.add(0);
-          state.revealedLetters.add(word.length - 1);
-        }
-        // Wymień 3 losowe litery z ręki na nowe
-        const indices = [];
-        while (indices.length < Math.min(3, state.hand.length)) {
-          const idx = Math.floor(Math.random() * state.hand.length);
-          if (!indices.includes(idx)) indices.push(idx);
-        }
-        const { hand, pool } = import_replenishHand(state.hand, indices, state.letterPool);
-        state.hand = hand;
-        state.letterPool = pool;
-        return { message: 'Odkryto skrajne litery, dobrano 3 nowe!' };
+        const count = Math.min(3, state.letterPool.length);
+        const drawn = state.letterPool.splice(0, count);
+        state.hand.push(...drawn);
+        return { message: `+${count} litery w ręce!` };
       },
     },
   },
 };
 
-// Pomocnicza — importowana lazy żeby uniknąć circular imports
+// Pomocnicza — zachowana dla kompatybilności (akrostych już nie wymaga replenishHand)
 let import_replenishHand = null;
 export function setReplenishHand(fn) { import_replenishHand = fn; }
 
