@@ -336,11 +336,11 @@ export function showScorePopup({ word, result }) {
   if (!popup) return;
 
   const detail = result.lettersOnly
-    ? `${result.chips} chipów (bez mnożnika)`
+    ? `${result.chips} znaków (bez mnożnika)`
     : `${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}`;
 
   const extraLine = result.extraChips > 0
-    ? `<div class="score-popup__extra">+${result.extraChips} chipów z liter</div>`
+    ? `<div class="score-popup__extra">+${result.extraChips} znaków z liter</div>`
     : '';
 
   popup.innerHTML = `

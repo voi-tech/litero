@@ -311,7 +311,7 @@ details summary { cursor: pointer; user-select: none; }
   gap: .6rem;
   flex-wrap: wrap;
 }
-#btn-skip-figure { align-self: flex-start; }
+#btn-skip-figure { align-self: center; }
 
 /* =============================================
    KAFELKI FIGUR (używane w wielu miejscach)
