@@ -1,7 +1,7 @@
 // src/main.js — bootstrap, routing, event bindings
 
 import { emitter } from './eventEmitter.js';
-import { initGame, startGame, playWord, discardLetters, gameState, endGame } from './game.js';
+import { initGame, startGame, playWord, discardLetters, gameState, endGame, sortHand, closeScriptorium } from './game.js';
 import {
   initScreens,
   showScreen,
@@ -18,7 +18,7 @@ import {
   showTagToast,
   bindBlindSelectEvents,
 } from './ui.js';
-import { openScriptorium, renderScriptorium, bindScriptoriumEvents } from './scriptorium.js';
+import { openScriptorium, bindScriptoriumEvents } from './scriptorium.js';
 
 // ---- Bootstrap -------------------------------------------------------
 
@@ -40,10 +40,13 @@ function bindStaticEvents() {
 
   document.getElementById('btn-summary-continue')?.addEventListener('click', () => {
     if (gameState.phase !== 'summary') return;
-    if (gameState._summaryWon) {
-      openScriptorium();
-    } else {
+    if (!gameState._summaryWon) {
       endGame(false);
+    } else if (gameState._wonByGuess) {
+      // Wygrana przez odgadnięcie → pomiń Skryptorium
+      closeScriptorium();
+    } else {
+      openScriptorium();
     }
   });
 
@@ -51,6 +54,8 @@ function bindStaticEvents() {
 
   document.getElementById('btn-play')?.addEventListener('click', () => playWord());
   document.getElementById('btn-discard')?.addEventListener('click', () => discardLetters());
+
+  document.getElementById('btn-sort')?.addEventListener('click', () => sortHand());
 
   bindBlindSelectEvents();
   bindScriptoriumEvents();
@@ -109,6 +114,14 @@ function bindGameEvents() {
     updateGameAfterPlay();
   });
 
+  emitter.on('handSorted', () => {
+    updateGameAfterPlay();
+  });
+
+  emitter.on('passiveBonusPicked', () => {
+    showToast('Bonus pasywny aktywny!', 'var(--green)');
+  });
+
   emitter.on('blindEnded', ({ won, inkReward, score }) => {
     renderSummaryScreen({ won, inkReward, score });
     showScreen('screen-summary');
@@ -128,14 +141,6 @@ function bindGameEvents() {
   emitter.on('gameOver', ({ victory }) => {
     renderEndScreen({ victory });
     showScreen('screen-end');
-  });
-
-  emitter.on('figurePicked', () => {
-    renderBlindSelectScreen();
-  });
-
-  emitter.on('figurePickSkipped', () => {
-    renderBlindSelectScreen();
   });
 }
 
