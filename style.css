@@ -664,6 +664,18 @@ details summary { cursor: pointer; user-select: none; }
 }
 .end-word-tag.cat { border-color: var(--accent); color: var(--accent); }
 
+/* Atrybucja słownika */
+.credits-line {
+  position: fixed;
+  bottom: .4rem;
+  right: .6rem;
+  font-size: .65rem;
+  color: var(--text-muted);
+  opacity: .4;
+  pointer-events: none;
+}
+.credits-line a { color: inherit; pointer-events: all; }
+
 /* =============================================
    SCORE POPUP
    ============================================= */
