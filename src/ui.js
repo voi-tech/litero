@@ -212,7 +212,14 @@ export function renderGameScreen() {
 
 function updateGameHeader() {
   const blind = gameState.currentBlind;
-  setEl('g-blind-name', blind?.word ?? '');
+  // Pokaż słowo tylko w stopniu odkrytym (reszta jako podkreślenia)
+  if (blind) {
+    const word = blind.word.toUpperCase();
+    const display = word.split('').map((l, i) => gameState.revealedLetters.has(i) ? l : '_').join(' ');
+    setEl('g-blind-name', display);
+  } else {
+    setEl('g-blind-name', '');
+  }
   setEl('g-score', gameState.runningScore.toLocaleString('pl'));
   setEl('g-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
   setEl('g-ink', gameState.ink);
