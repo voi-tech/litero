@@ -531,8 +531,7 @@ details summary { cursor: pointer; user-select: none; }
   align-items: center;
   justify-content: center;
 }
-.game-actions .btn--danger { flex: 0 0 auto; }
-.game-actions .btn--primary { flex: 0 0 auto; }
+.game-actions .btn { flex: 1 1 0; }
 
 /* Figury jednorazowe w grze */
 .hand-figures {
