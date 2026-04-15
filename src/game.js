@@ -100,7 +100,18 @@ export function startGame() {
   gameState.pendingTags = [];
   gameState.hand = hand;
   gameState.letterPool = pool;
-  gameState.shuffledCategories = [...CATEGORIES].sort(() => Math.random() - 0.5);
+  // Tasuj kategorie i przypisz progresywne cele (wzrost przez całą grę)
+  const shuffled = [...CATEGORIES].sort(() => Math.random() - 0.5);
+  gameState.shuffledCategories = shuffled.map((cat, i) => ({
+    ...cat,
+    blinds: cat.blinds.map(b => ({
+      ...b,
+      targetScore:
+        b.type === 'small' ? 80  + i * 55  :
+        b.type === 'big'   ? 160 + i * 110 :
+                             280 + i * 180,
+    })),
+  }));
   gameState.passiveBonuses = [];
   gameState.hasDefeatedBoss = false;
   gameState.passiveBonusTaken = false;
@@ -329,9 +340,13 @@ export function playWord() {
     gameState.playsUsedThisBlind += 1;
     if (activeFigures.includes('skryba')) gameState.ink += 2;
 
-    const { hand: newHand, pool: newPool } = replenishHand(hand, selectedIndices, gameState.letterPool);
-    gameState.hand = newHand;
-    gameState.letterPool = newPool;
+    // Uzupełnij rękę max do 8 liter
+    const handAfterPlay = hand.filter((_, i) => !selectedIndices.includes(i));
+    const refillCountWords = Math.max(0, 8 - handAfterPlay.length);
+    let poolW = gameState.letterPool;
+    if (poolW.length < refillCountWords) poolW = [...poolW, ...shufflePool(buildPool())];
+    gameState.hand = [...handAfterPlay, ...poolW.slice(0, refillCountWords)];
+    gameState.letterPool = poolW.slice(refillCountWords);
     gameState.selectedIndices = [];
 
     for (const seg of validSegments) {
@@ -364,9 +379,13 @@ export function playWord() {
     gameState.playsUsedThisBlind += 1;
     if (activeFigures.includes('skryba')) gameState.ink += 2;
 
-    const { hand: newHand, pool: newPool } = replenishHand(hand, selectedIndices, gameState.letterPool);
-    gameState.hand = newHand;
-    gameState.letterPool = newPool;
+    // Uzupełnij rękę max do 8 liter (surowe znaki)
+    const handAfterRaw = hand.filter((_, i) => !selectedIndices.includes(i));
+    const refillCountRaw = Math.max(0, 8 - handAfterRaw.length);
+    let poolR = gameState.letterPool;
+    if (poolR.length < refillCountRaw) poolR = [...poolR, ...shufflePool(buildPool())];
+    gameState.hand = [...handAfterRaw, ...poolR.slice(0, refillCountRaw)];
+    gameState.letterPool = poolR.slice(refillCountRaw);
     gameState.selectedIndices = [];
     gameState.wordsPlayedThisRun.push({ word: fullWord, score: chips, categoryBonus: false });
     updateRevealedLetters();

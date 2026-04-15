@@ -459,10 +459,12 @@ export function renderSummaryScreen({ won, inkReward, score }) {
   if (btn) {
     if (!won) {
       btn.textContent = 'Koniec gry';
-    } else if (gameState._wonByGuess) {
-      btn.textContent = 'Dalej →';
     } else {
-      btn.textContent = 'Skryptorium →';
+      const cat = gameState.shuffledCategories[gameState.categoryIndex];
+      const isLastBlind =
+        gameState.categoryIndex === gameState.shuffledCategories.length - 1 &&
+        gameState.blindIndex === cat?.blinds.length - 1;
+      btn.textContent = isLastBlind ? 'Zakończ grę →' : 'Skryptorium →';
     }
   }
 }

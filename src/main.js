@@ -43,9 +43,15 @@ function bindStaticEvents() {
     if (gameState.phase !== 'summary') return;
     if (!gameState._summaryWon) {
       endGame(false);
-    } else if (gameState._wonByGuess) {
-      // Wygrana przez odgadnięcie → pomiń Skryptorium
-      closeScriptorium();
+      return;
+    }
+    // Sprawdź czy to ostatni blind w grze
+    const cat = gameState.shuffledCategories[gameState.categoryIndex];
+    const isLastBlind =
+      gameState.categoryIndex === gameState.shuffledCategories.length - 1 &&
+      gameState.blindIndex === cat.blinds.length - 1;
+    if (isLastBlind) {
+      endGame(true);
     } else {
       openScriptorium();
     }
