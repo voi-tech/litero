@@ -85,7 +85,7 @@ details summary { cursor: pointer; user-select: none; }
 }
 .btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
 .btn--sm { padding: .3rem .7rem; font-size: .82rem; }
-.btn--large { padding: .75rem 2rem; font-size: 1.1rem; width: 100%; }
+.btn--large { padding: .75rem 2rem; font-size: 1.1rem; }
 
 /* --- Ink display --- */
 .ink-display {
@@ -527,8 +527,8 @@ details summary { cursor: pointer; user-select: none; }
   align-items: center;
 }
 .game-actions .btn--danger { flex: 0 0 auto; }
-.game-actions .btn--primary { flex: 1; }
-.btn--chips-only { width: 100%; margin-top: .3rem; font-size: .82rem; opacity: .7; }
+.game-actions .btn--primary { flex: 0 0 auto; }
+.btn--chips-only { margin-top: .3rem; font-size: .82rem; opacity: .7; align-self: flex-start; }
 
 /* Plays indicator */
 .plays-indicator {
