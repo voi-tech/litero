@@ -1,7 +1,7 @@
 // src/main.js — bootstrap, routing, event bindings
 
 import { emitter } from './eventEmitter.js';
-import { initGame, startGame, playWord, discardLetters, gameState, endGame } from './game.js';
+import { initGame, startGame, playWord, playLettersOnly, discardLetters, gameState, endGame } from './game.js';
 import {
   initScreens,
   showScreen,
@@ -50,6 +50,7 @@ function bindStaticEvents() {
   document.getElementById('btn-play-again')?.addEventListener('click', () => startGame());
 
   document.getElementById('btn-play')?.addEventListener('click', () => playWord());
+  document.getElementById('btn-play-chips')?.addEventListener('click', () => playLettersOnly());
   document.getElementById('btn-discard')?.addEventListener('click', () => discardLetters());
 
   bindBlindSelectEvents();

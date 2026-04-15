@@ -4,7 +4,7 @@ import { emitter } from './eventEmitter.js';
 import categoriesData from '../data/categories.json';
 import { buildHand, replenishHand } from './letters.js';
 import { loadDictionary, isValidWord } from './dictionary.js';
-import { scoreWord, calcInkReward } from './scoring.js';
+import { scoreWord, calcInkReward, LETTER_VALUES } from './scoring.js';
 import { applyFigureHooks, FIGURES, getRandomFigures, getFigureSellValue, setReplenishHand } from './figures.js';
 
 // Podpięcie replenishHand pod figures.js (unikamy circular import)
@@ -61,6 +61,15 @@ export const gameState = {
 
   // Oferta figur (ekran blind-select)
   _figureOffer: [],
+
+  // Potasowana kolejność kategorii (nowa per rozgrywka)
+  shuffledCategories: [],
+
+  // Aktywne słowa blindów (losowane z pool przy enterCategory)
+  _activeBlindWords: [],
+
+  // Pre-generowane tagi skip (jedna per blind, losowane przy enterCategory)
+  _pendingSkipTags: [],
 };
 
 // ---- Init ---------------------------------------------------
@@ -88,6 +97,7 @@ export function startGame() {
   gameState.pendingTags = [];
   gameState.hand = hand;
   gameState.letterPool = pool;
+  gameState.shuffledCategories = [...CATEGORIES].sort(() => Math.random() - 0.5);
 
   emitter.emit('gameStarted', { state: gameState });
 }
@@ -98,9 +108,18 @@ export function enterCategory(categoryIndex) {
   gameState.categoryIndex = categoryIndex;
   gameState.blindIndex = 0;
   gameState.discardsLeft = 3;
-  gameState.currentCategory = CATEGORIES[categoryIndex];
+  gameState.currentCategory = gameState.shuffledCategories[categoryIndex];
   gameState.phase = 'blind-select';
   gameState._figureOffer = getRandomFigures(3, gameState.activeFigures, anteTier());
+
+  // Losuj słowa blindów z puli
+  gameState._activeBlindWords = gameState.currentCategory.blinds.map(blind => {
+    const pick = blind.pool[Math.floor(Math.random() * blind.pool.length)];
+    return { ...blind, word: pick.word, definition: pick.definition };
+  });
+
+  // Pre-generuj tagi za skip (jeden na blind)
+  gameState._pendingSkipTags = gameState.currentCategory.blinds.map(() => randomTag());
 
   emitter.emit('categoryEntered', { state: gameState });
 }
@@ -108,12 +127,12 @@ export function enterCategory(categoryIndex) {
 // ---- Próba pominięcia blinda --------------------------------
 
 export function trySkipBlind(blindIndex, attempt) {
-  const blind = CATEGORIES[gameState.categoryIndex].blinds[blindIndex];
+  const blind = gameState._activeBlindWords[blindIndex];
   const correct = attempt.trim().toUpperCase() === blind.word.toUpperCase();
 
   if (correct) {
-    // Pominięto — przyznaj tag
-    const tag = randomTag();
+    // Pominięto — użyj pre-generowanego taga
+    const tag = gameState._pendingSkipTags[blindIndex];
     gameState.pendingTags.push(tag);
     applyTag(tag);
     gameState.completedBlinds.push({
@@ -136,7 +155,7 @@ export function trySkipBlind(blindIndex, attempt) {
 
 export function startBlind(blindIndex) {
   gameState.blindIndex = blindIndex;
-  const blind = CATEGORIES[gameState.categoryIndex].blinds[blindIndex];
+  const blind = gameState._activeBlindWords[blindIndex];
   gameState.currentBlind = blind;
   gameState.runningScore = 0;
   gameState.playsLeft = 5;
@@ -268,6 +287,63 @@ function updateRevealedLetters() {
   }
 }
 
+// ---- Zagranie liter (tylko chipy, bez słownika) -------------
+
+export function playLettersOnly() {
+  if (gameState.phase !== 'game') return;
+  const { selectedIndices, hand, currentBlind, activeFigures } = gameState;
+
+  if (selectedIndices.length < 1) {
+    emitter.emit('discardFailed', { reason: 'nothing_selected' });
+    return;
+  }
+
+  let chips = 0;
+  for (const idx of selectedIndices) {
+    const letter = hand[idx].toUpperCase();
+    chips += (LETTER_VALUES[letter] ?? 1);
+  }
+
+  const score = chips;
+
+  gameState.runningScore += score;
+  gameState.playsLeft -= 1;
+  gameState.playsUsedThisBlind += 1;
+
+  // Skryba: +2 atramenty
+  if (activeFigures.includes('skryba')) gameState.ink += 2;
+
+  const { hand: newHand, pool: newPool } = replenishHand(
+    hand, selectedIndices, gameState.letterPool
+  );
+  gameState.hand = newHand;
+  gameState.letterPool = newPool;
+  gameState.selectedIndices = [];
+
+  const word = selectedIndices.map(i => hand[i]).join('');
+  gameState.wordsPlayedThisRun.push({ word, score, categoryBonus: false });
+  updateRevealedLetters();
+
+  emitter.emit('wordPlayed', {
+    word,
+    result: {
+      score,
+      chips,
+      mult: 1,
+      tier: { name: 'Litery', color: '#6b7280' },
+      categoryBonus: 0,
+      lettersOnly: true,
+    },
+    state: gameState,
+  });
+
+  if (gameState.runningScore >= currentBlind.targetScore) {
+    endBlind(true);
+  } else if (gameState.playsLeft <= 0) {
+    endBlind(false);
+  }
+}
+
 // ---- Odrzucenie liter ---------------------------------------
 
 export function discardLetters() {
@@ -350,7 +426,7 @@ export function closeScriptorium() {
 }
 
 function advanceAfterBlind(skipped) {
-  const category = CATEGORIES[gameState.categoryIndex];
+  const category = gameState.shuffledCategories[gameState.categoryIndex];
   const nextBlindIndex = gameState.blindIndex + 1;
 
   if (nextBlindIndex < category.blinds.length) {
@@ -362,7 +438,7 @@ function advanceAfterBlind(skipped) {
   } else {
     // Kategoria ukończona
     const nextCategoryIndex = gameState.categoryIndex + 1;
-    if (nextCategoryIndex < CATEGORIES.length) {
+    if (nextCategoryIndex < gameState.shuffledCategories.length) {
       gameState.categoryIndex = nextCategoryIndex;
       gameState.blindIndex = 0;
       gameState.discardsLeft = 3;

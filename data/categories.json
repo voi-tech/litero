@@ -6,9 +6,30 @@
       "icon": "🧠",
       "words": ["prawda", "dobro", "piękno", "logos", "etyka", "dusza", "rozum", "cnota", "wolność", "byt"],
       "blinds": [
-        { "id": "logos",   "word": "LOGOS",   "definition": "Greckie pojęcie oznaczające rozum, słowo lub zasadę porządkującą wszechświat",                   "type": "small", "targetScore": 300  },
-        { "id": "cnota",   "word": "CNOTA",   "definition": "Trwała dyspozycja woli do czynienia dobra; doskonałość moralna człowieka",                        "type": "big",   "targetScore": 600  },
-        { "id": "dialektyka","word":"DIALEKTYKA","definition":"Metoda dochodzenia do prawdy poprzez zderzanie przeciwstawnych tez i syntezę sprzeczności",      "type": "boss",  "targetScore": 1200 }
+        {
+          "id": "logos", "type": "small", "targetScore": 120,
+          "pool": [
+            { "word": "LOGOS",  "definition": "Greckie pojęcie oznaczające rozum, słowo lub zasadę porządkującą wszechświat" },
+            { "word": "ETYKA",  "definition": "Dział filozofii badający zasady moralne i normy postępowania człowieka" },
+            { "word": "DUSZA",  "definition": "Niematerialna część człowieka; wedle filozofii platońskiej źródło myśli i uczuć" }
+          ]
+        },
+        {
+          "id": "cnota", "type": "big", "targetScore": 240,
+          "pool": [
+            { "word": "CNOTA",  "definition": "Trwała dyspozycja woli do czynienia dobra; doskonałość moralna człowieka" },
+            { "word": "ROZUM",  "definition": "Zdolność umysłu do logicznego myślenia, wnioskowania i poznawania prawdy" },
+            { "word": "PRAWDA", "definition": "Zgodność sądu z rzeczywistością; cel dążeń filozoficznych od starożytności" }
+          ]
+        },
+        {
+          "id": "dialektyka", "type": "boss", "targetScore": 480,
+          "pool": [
+            { "word": "DIALEKTYKA", "definition": "Metoda dochodzenia do prawdy poprzez zderzanie przeciwstawnych tez i syntezę sprzeczności" },
+            { "word": "EMPIRYZM",   "definition": "Kierunek filozoficzny uznający doświadczenie zmysłowe za jedyne źródło poznania" },
+            { "word": "NIHILIZM",   "definition": "Pogląd filozoficzny negujący istnienie wartości, norm moralnych i sensu życia" }
+          ]
+        }
       ]
     },
     {
@@ -17,9 +38,30 @@
       "icon": "🔬",
       "words": ["atom", "masa", "siła", "prąd", "falka", "enzym", "gen", "orbit", "foton", "neuron"],
       "blinds": [
-        { "id": "foton",   "word": "FOTON",   "definition": "Elementarna cząstka światła; kwant promieniowania elektromagnetycznego bez masy spoczynkowej",    "type": "small", "targetScore": 300  },
-        { "id": "enzym",   "word": "ENZYM",   "definition": "Białkowy katalizator biologiczny przyspieszający reakcje chemiczne w organizmach żywych",         "type": "big",   "targetScore": 600  },
-        { "id": "hipoteza","word": "HIPOTEZA","definition": "Przypuszczenie naukowe wymagające weryfikacji, punkt wyjścia do badań empirycznych",               "type": "boss",  "targetScore": 1200 }
+        {
+          "id": "foton", "type": "small", "targetScore": 120,
+          "pool": [
+            { "word": "FOTON",   "definition": "Elementarna cząstka światła; kwant promieniowania elektromagnetycznego bez masy spoczynkowej" },
+            { "word": "ATOM",    "definition": "Najmniejsza część pierwiastka chemicznego zachowująca jego właściwości chemiczne" },
+            { "word": "NEUTRON", "definition": "Neutralna elektrycznie cząstka elementarna wchodząca w skład jądra atomowego" }
+          ]
+        },
+        {
+          "id": "enzym", "type": "big", "targetScore": 240,
+          "pool": [
+            { "word": "ENZYM",  "definition": "Białkowy katalizator biologiczny przyspieszający reakcje chemiczne w organizmach żywych" },
+            { "word": "GENOM",  "definition": "Kompletna informacja genetyczna organizmu zakodowana w DNA lub RNA" },
+            { "word": "OSMOZA", "definition": "Dyfuzja wody przez błonę półprzepuszczalną z roztworu mniej stężonego do bardziej stężonego" }
+          ]
+        },
+        {
+          "id": "hipoteza", "type": "boss", "targetScore": 480,
+          "pool": [
+            { "word": "HIPOTEZA", "definition": "Przypuszczenie naukowe wymagające weryfikacji, punkt wyjścia do badań empirycznych" },
+            { "word": "EWOLUCJA", "definition": "Proces stopniowych zmian organizmów żywych prowadzący do powstawania nowych gatunków" },
+            { "word": "SYNTEZA",  "definition": "Połączenie różnych elementów w całość; w chemii — tworzenie złożonych związków z prostszych" }
+          ]
+        }
       ]
     },
     {
@@ -28,9 +70,30 @@
       "icon": "⚔️",
       "words": ["cesarz", "bitwa", "tron", "kronika", "dynastia", "edykt", "sejm", "hetman", "zamek", "rycerz"],
       "blinds": [
-        { "id": "edykt",   "word": "EDYKT",   "definition": "Uroczyste rozporządzenie lub dekret wydany przez władcę z mocą obowiązującą prawa",               "type": "small", "targetScore": 450  },
-        { "id": "dynastia","word": "DYNASTIA","definition": "Ród panujący dziedziczący władzę przez kolejne pokolenia; następstwo władców tej samej rodziny",   "type": "big",   "targetScore": 900  },
-        { "id": "feudalizm","word":"FEUDALIZM","definition":"Średniowieczny ustrój społeczno-gospodarczy oparty na hierarchii lennej i zależności wasalnej",      "type": "boss",  "targetScore": 1800 }
+        {
+          "id": "edykt", "type": "small", "targetScore": 180,
+          "pool": [
+            { "word": "EDYKT",   "definition": "Uroczyste rozporządzenie lub dekret wydany przez władcę z mocą obowiązującą prawa" },
+            { "word": "KRONIKA", "definition": "Pisany zapis wydarzeń historycznych w porządku chronologicznym" },
+            { "word": "HETMAN",  "definition": "Najwyższy dowódca wojskowy w dawnej Polsce; naczelny wódz armii koronnej lub litewskiej" }
+          ]
+        },
+        {
+          "id": "dynastia", "type": "big", "targetScore": 360,
+          "pool": [
+            { "word": "DYNASTIA",  "definition": "Ród panujący dziedziczący władzę przez kolejne pokolenia; następstwo władców tej samej rodziny" },
+            { "word": "MONARCHIA", "definition": "Forma rządów, w której władza skupiona jest w rękach jednego dziedzicznego władcy" },
+            { "word": "IMPERIUM",  "definition": "Rozległe państwo sprawujące władzę nad wieloma narodami i terytoriami" }
+          ]
+        },
+        {
+          "id": "feudalizm", "type": "boss", "targetScore": 720,
+          "pool": [
+            { "word": "FEUDALIZM",  "definition": "Średniowieczny ustrój społeczno-gospodarczy oparty na hierarchii lennej i zależności wasalnej" },
+            { "word": "SCHOLASTYKA","definition": "Dominujący nurt filozoficzno-teologiczny średniowiecza łączący wiarę z rozumem" },
+            { "word": "INKWIZYCJA", "definition": "Kościelny trybunał do spraw herezji działający w średniowieczu i epoce nowożytnej" }
+          ]
+        }
       ]
     },
     {
@@ -39,9 +102,30 @@
       "icon": "🎨",
       "words": ["sonata", "fresk", "opera", "sonet", "barok", "mural", "rzeźba", "farba", "rytm", "strofa"],
       "blinds": [
-        { "id": "fresk",   "word": "FRESK",   "definition": "Technika malarska polegająca na nakładaniu farb na świeży tynk; malowidło ścienne",                "type": "small", "targetScore": 450  },
-        { "id": "sonata",  "word": "SONATA",  "definition": "Instrumentalny utwór muzyczny złożony z kilku kontrastujących ze sobą ogniw",                     "type": "big",   "targetScore": 900  },
-        { "id": "impresjonizm","word":"IMPRESJONIZM","definition":"Kierunek w malarstwie XIX w. kładący nacisk na utrwalenie ulotnego wrażenia świetlnego",    "type": "boss",  "targetScore": 1800 }
+        {
+          "id": "fresk", "type": "small", "targetScore": 180,
+          "pool": [
+            { "word": "FRESK",  "definition": "Technika malarska polegająca na nakładaniu farb na świeży tynk; malowidło ścienne" },
+            { "word": "SONET",  "definition": "Liryczna forma poetycka złożona z czternastu wersów o określonym schemacie rymów" },
+            { "word": "STROFA", "definition": "Regularnie powtarzający się układ wersów w wierszu; zwrotka" }
+          ]
+        },
+        {
+          "id": "sonata", "type": "big", "targetScore": 360,
+          "pool": [
+            { "word": "SONATA",    "definition": "Instrumentalny utwór muzyczny złożony z kilku kontrastujących ze sobą ogniw" },
+            { "word": "SYMFONIA",  "definition": "Rozbudowany utwór orkiestrowy złożony zazwyczaj z czterech części o zróżnicowanym charakterze" },
+            { "word": "EKSPRESJA", "definition": "Silne, wyraziste wyrażenie uczuć lub idei w dziele artystycznym" }
+          ]
+        },
+        {
+          "id": "impresjonizm", "type": "boss", "targetScore": 720,
+          "pool": [
+            { "word": "IMPRESJONIZM", "definition": "Kierunek w malarstwie XIX w. kładący nacisk na utrwalenie ulotnego wrażenia świetlnego" },
+            { "word": "SYMBOLIZM",    "definition": "Prąd artystyczny przełomu XIX i XX w. posługujący się symbolem i sugestią" },
+            { "word": "ROMANTYZM",    "definition": "Europejski ruch kulturalny przełomu XVIII i XIX w. ceniący uczucie, wyobraźnię i wolność" }
+          ]
+        }
       ]
     },
     {
@@ -50,9 +134,30 @@
       "icon": "🌍",
       "words": ["delta", "fiord", "step", "kanion", "laguna", "mierzeja", "atol", "depresja", "lodowiec", "monsun"],
       "blinds": [
-        { "id": "atol",    "word": "ATOL",    "definition": "Koralowa wyspa w kształcie pierścienia otaczająca lagunę na środku oceanu",                       "type": "small", "targetScore": 450  },
-        { "id": "fiord",   "word": "FIORD",   "definition": "Długa i wąska zatoka morska powstała przez zalanie doliny polodowcowej",                         "type": "big",   "targetScore": 900  },
-        { "id": "archipelag","word":"ARCHIPELAG","definition":"Skupisko wysp i wysepek na morzu lub oceanie tworzące geograficzną całość",                      "type": "boss",  "targetScore": 1800 }
+        {
+          "id": "atol", "type": "small", "targetScore": 240,
+          "pool": [
+            { "word": "ATOL",    "definition": "Koralowa wyspa w kształcie pierścienia otaczająca lagunę na środku oceanu" },
+            { "word": "DELTA",   "definition": "Ujście rzeki rozgałęziające się w kilka ramion; tworzy żyzny teren nadbrzeżny" },
+            { "word": "MIERZEJA","definition": "Wąski pas lądu oddzielający zatokę lub jezioro przybrzeżne od morza" }
+          ]
+        },
+        {
+          "id": "fiord", "type": "big", "targetScore": 480,
+          "pool": [
+            { "word": "FIORD",  "definition": "Długa i wąska zatoka morska powstała przez zalanie doliny polodowcowej" },
+            { "word": "LAGUNA", "definition": "Płytkie morskie jezioro oddzielone od morza wąskim pasem lądu lub rafą koralową" },
+            { "word": "KANION", "definition": "Głęboka dolina rzeczna z urwistymi ścianami wykuta przez wieloletnią erozję wodną" }
+          ]
+        },
+        {
+          "id": "archipelag", "type": "boss", "targetScore": 960,
+          "pool": [
+            { "word": "ARCHIPELAG", "definition": "Skupisko wysp i wysepek na morzu lub oceanie tworzące geograficzną całość" },
+            { "word": "KONTYNENT",  "definition": "Rozległy obszar lądowy otoczony morzem lub oceanem; jeden z siedmiu wielkich lądów" },
+            { "word": "LODOWIEC",   "definition": "Masa lodu lądowego powstała ze skumulowanego śniegu, przemieszczająca się pod wpływem grawitacji" }
+          ]
+        }
       ]
     },
     {
@@ -61,9 +166,30 @@
       "icon": "⚙️",
       "words": ["silnik", "tłok", "dźwig", "laser", "beton", "tranzystor", "antena", "pryzmat", "turbina", "kabel"],
       "blinds": [
-        { "id": "tłok",    "word": "TŁOK",    "definition": "Ruchomy element cylindra w silniku spalinowym zamieniający ciśnienie gazu w ruch postępowy",      "type": "small", "targetScore": 600  },
-        { "id": "turbina", "word": "TURBINA", "definition": "Silnik cieplny lub wodny zamieniający energię cieczy lub gazu w energię mechaniczną",             "type": "big",   "targetScore": 1200 },
-        { "id": "tranzystor","word":"TRANZYSTOR","definition":"Półprzewodnikowy element elektroniczny służący do wzmacniania i przełączania sygnałów",           "type": "boss",  "targetScore": 2400 }
+        {
+          "id": "tłok", "type": "small", "targetScore": 240,
+          "pool": [
+            { "word": "TŁOK",   "definition": "Ruchomy element cylindra w silniku spalinowym zamieniający ciśnienie gazu w ruch postępowy" },
+            { "word": "LASER",  "definition": "Urządzenie emitujące spójną wiązkę promieniowania świetlnego o dużej intensywności" },
+            { "word": "ANTENA", "definition": "Urządzenie służące do nadawania lub odbioru fal elektromagnetycznych" }
+          ]
+        },
+        {
+          "id": "turbina", "type": "big", "targetScore": 480,
+          "pool": [
+            { "word": "TURBINA",   "definition": "Silnik cieplny lub wodny zamieniający energię cieczy lub gazu w energię mechaniczną" },
+            { "word": "REAKTOR",   "definition": "Urządzenie do przeprowadzania kontrolowanych reakcji jądrowych lub chemicznych" },
+            { "word": "GENERATOR", "definition": "Maszyna elektryczna przetwarzająca energię mechaniczną w elektryczną" }
+          ]
+        },
+        {
+          "id": "tranzystor", "type": "boss", "targetScore": 960,
+          "pool": [
+            { "word": "TRANZYSTOR", "definition": "Półprzewodnikowy element elektroniczny służący do wzmacniania i przełączania sygnałów" },
+            { "word": "PROCESOR",   "definition": "Główny układ scalony komputera wykonujący obliczenia i koordynujący pracę systemu" },
+            { "word": "KOMPUTER",   "definition": "Elektroniczne urządzenie do przetwarzania danych według zapisanego programu" }
+          ]
+        }
       ]
     },
     {
@@ -72,9 +198,30 @@
       "icon": "✝️",
       "words": ["modlitwa", "dogmat", "sakrament", "psalmy", "świątynia", "kapłan", "ofiara", "mistyk", "ikona", "rytuał"],
       "blinds": [
-        { "id": "dogmat",  "word": "DOGMAT",  "definition": "Twierdzenie uznane za niepodważalną prawdę wiary, przyjmowane bez dowodu",                       "type": "small", "targetScore": 600  },
-        { "id": "sakrament","word":"SAKRAMENT","definition":"Obrzęd religijny w chrześcijaństwie będący widzialnym znakiem niewidzialnej łaski Bożej",         "type": "big",   "targetScore": 1200 },
-        { "id": "eschatologia","word":"ESCHATOLOGIA","definition":"Dział teologii zajmujący się zagadnieniami ostatecznymi: śmiercią, sądem, niebem i piekłem","type": "boss",  "targetScore": 2400 }
+        {
+          "id": "dogmat", "type": "small", "targetScore": 320,
+          "pool": [
+            { "word": "DOGMAT", "definition": "Twierdzenie uznane za niepodważalną prawdę wiary, przyjmowane bez dowodu" },
+            { "word": "KAPŁAN", "definition": "Osoba pełniąca funkcje religijne i obrzędowe w danej wspólnocie lub religii" },
+            { "word": "IKONA",  "definition": "Sakralny obraz malowany na desce według ścisłych reguł; obiekt kultu w chrześcijaństwie wschodnim" }
+          ]
+        },
+        {
+          "id": "sakrament", "type": "big", "targetScore": 640,
+          "pool": [
+            { "word": "SAKRAMENT", "definition": "Obrzęd religijny w chrześcijaństwie będący widzialnym znakiem niewidzialnej łaski Bożej" },
+            { "word": "MODLITWA",  "definition": "Religijna praktyka kontaktu z Bogiem lub bóstwem; prośba, dziękczynienie lub uwielbienie" },
+            { "word": "LITURGIA",  "definition": "Zbiór przepisanych form i obrzędów sprawowania kultu religijnego" }
+          ]
+        },
+        {
+          "id": "eschatologia", "type": "boss", "targetScore": 1280,
+          "pool": [
+            { "word": "ESCHATOLOGIA", "definition": "Dział teologii zajmujący się zagadnieniami ostatecznymi: śmiercią, sądem, niebem i piekłem" },
+            { "word": "TEOLOGIA",     "definition": "Nauka o Bogu i sprawach boskich; systematyczne studium religii i doktryn wiary" },
+            { "word": "MISTYCYZM",    "definition": "Nurt religijny dążący do bezpośredniego, duchowego zjednoczenia z Bogiem lub Absolutem" }
+          ]
+        }
       ]
     },
     {
@@ -83,9 +230,30 @@
       "icon": "💰",
       "words": ["podatek", "inflacja", "kapitał", "eksport", "rynek", "akcja", "deficyt", "kurs", "popyt", "spółka"],
       "blinds": [
-        { "id": "akcja",   "word": "AKCJA",   "definition": "Papier wartościowy reprezentujący udział w kapitale spółki i uprawniający do dywidendy",         "type": "small", "targetScore": 600  },
-        { "id": "inflacja","word": "INFLACJA","definition": "Wzrost ogólnego poziomu cen towarów i usług powodujący spadek siły nabywczej pieniądza",          "type": "big",   "targetScore": 1200 },
-        { "id": "monopol", "word": "MONOPOL", "definition": "Sytuacja rynkowa, w której jeden podmiot ma wyłączną kontrolę nad dobrami lub usługami",         "type": "boss",  "targetScore": 2400 }
+        {
+          "id": "akcja", "type": "small", "targetScore": 320,
+          "pool": [
+            { "word": "AKCJA",   "definition": "Papier wartościowy reprezentujący udział w kapitale spółki i uprawniający do dywidendy" },
+            { "word": "RYNEK",   "definition": "Miejsce lub mechanizm wymiany dóbr i usług; system kształtowania cen przez popyt i podaż" },
+            { "word": "EKSPORT", "definition": "Sprzedaż towarów lub usług za granicę; jeden z czynników wzrostu gospodarczego" }
+          ]
+        },
+        {
+          "id": "inflacja", "type": "big", "targetScore": 640,
+          "pool": [
+            { "word": "INFLACJA", "definition": "Wzrost ogólnego poziomu cen towarów i usług powodujący spadek siły nabywczej pieniądza" },
+            { "word": "KAPITAŁ",  "definition": "Wartość przeznaczona do inwestowania lub środki finansowe będące podstawą działalności" },
+            { "word": "DEFICYT",  "definition": "Nadwyżka wydatków nad dochodami; niedobór środków finansowych lub towarów" }
+          ]
+        },
+        {
+          "id": "monopol", "type": "boss", "targetScore": 1280,
+          "pool": [
+            { "word": "MONOPOL",    "definition": "Sytuacja rynkowa, w której jeden podmiot ma wyłączną kontrolę nad dobrami lub usługami" },
+            { "word": "OLIGOPOL",   "definition": "Struktura rynku zdominowana przez kilku dużych producentów kontrolujących ceny" },
+            { "word": "LIBERALIZM", "definition": "Doktryna opowiadająca się za wolnym rynkiem i ograniczoną rolą państwa w gospodarce" }
+          ]
+        }
       ]
     },
     {
@@ -94,9 +262,30 @@
       "icon": "👥",
       "words": ["prawo", "norma", "klasa", "kultura", "elita", "media", "protest", "integracja", "tożsamość", "wartość"],
       "blinds": [
-        { "id": "norma",   "word": "NORMA",   "definition": "Przyjęty wzorzec zachowania lub reguła postępowania obowiązująca w danej grupie społecznej",     "type": "small", "targetScore": 800  },
-        { "id": "elita",   "word": "ELITA",   "definition": "Wyróżniająca się część społeczeństwa posiadająca szczególne wpływy, prestiż lub kompetencje",   "type": "big",   "targetScore": 1600 },
-        { "id": "demografia","word":"DEMOGRAFIA","definition":"Nauka badająca stan i dynamikę ludności; zjawiska związane z rozwojem populacji",              "type": "boss",  "targetScore": 3200 }
+        {
+          "id": "norma", "type": "small", "targetScore": 400,
+          "pool": [
+            { "word": "NORMA",  "definition": "Przyjęty wzorzec zachowania lub reguła postępowania obowiązująca w danej grupie społecznej" },
+            { "word": "KLASA",  "definition": "Grupa społeczna wyróżniona ze względu na podobne warunki ekonomiczne i pozycję w strukturze" },
+            { "word": "MEDIA",  "definition": "Środki masowego przekazu służące do informowania i kształtowania opinii publicznej" }
+          ]
+        },
+        {
+          "id": "elita", "type": "big", "targetScore": 800,
+          "pool": [
+            { "word": "ELITA",       "definition": "Wyróżniająca się część społeczeństwa posiadająca szczególne wpływy, prestiż lub kompetencje" },
+            { "word": "PROTEST",     "definition": "Zbiorowe wyrażenie sprzeciwu wobec władzy lub niesprawiedliwości; forma aktywności obywatelskiej" },
+            { "word": "INTEGRACJA",  "definition": "Proces łączenia różnych elementów w spójną całość; włączanie grup do wspólnoty" }
+          ]
+        },
+        {
+          "id": "demografia", "type": "boss", "targetScore": 1600,
+          "pool": [
+            { "word": "DEMOGRAFIA", "definition": "Nauka badająca stan i dynamikę ludności; zjawiska związane z rozwojem populacji" },
+            { "word": "SOCJOLOGIA", "definition": "Nauka o społeczeństwie, jego strukturze, procesach i zjawiskach grupowych" },
+            { "word": "TOŻSAMOŚĆ",  "definition": "Poczucie własnej odrębności i ciągłości; zbiór cech definiujących jednostkę lub grupę" }
+          ]
+        }
       ]
     },
     {
@@ -105,9 +294,30 @@
       "icon": "🦅",
       "words": ["mazurka", "szlachta", "sejm", "husarz", "piast", "orzeł", "wawel", "bursztyn", "wisła", "solidarność"],
       "blinds": [
-        { "id": "husarz",  "word": "HUSARZ",  "definition": "Ciężkozbrojny jeździec polskiej jazdy z XVII w. znany z charakterystycznych skrzydeł przy zbroi","type": "small", "targetScore": 800  },
-        { "id": "szlachta","word": "SZLACHTA","definition": "Stan społeczny w dawnej Polsce cieszący się przywilejami prawnymi i monopolem na sprawowanie władzy","type":"big","targetScore": 1600 },
-        { "id": "solidarnosc","word":"SOLIDARNOŚĆ","definition":"Niezależny Samorządny Związek Zawodowy będący symbolem polskiego ruchu wolnościowego lat 80.",  "type": "boss",  "targetScore": 3200 }
+        {
+          "id": "husarz", "type": "small", "targetScore": 400,
+          "pool": [
+            { "word": "HUSARZ",   "definition": "Ciężkozbrojny jeździec polskiej jazdy z XVII w. znany z charakterystycznych skrzydeł przy zbroi" },
+            { "word": "MAZURKA", "definition": "Polska forma taneczna w metrum 3/4 wywodząca się z Mazowsza; utrwalona przez Chopina" },
+            { "word": "BURSZTYN", "definition": "Skamieniała żywica drzew iglastych zwana złotem Bałtyku; ceniony klejnot i surowiec" }
+          ]
+        },
+        {
+          "id": "szlachta", "type": "big", "targetScore": 800,
+          "pool": [
+            { "word": "SZLACHTA", "definition": "Stan społeczny w dawnej Polsce cieszący się przywilejami prawnymi i monopolem na sprawowanie władzy" },
+            { "word": "WAWEL",    "definition": "Wzgórze na lewym brzegu Wisły w Krakowie z królewskim zamkiem i katedrą" },
+            { "word": "SEJM",     "definition": "Najwyższy organ władzy ustawodawczej w Polsce; parlament uchwalający prawa" }
+          ]
+        },
+        {
+          "id": "solidarnosc", "type": "boss", "targetScore": 1600,
+          "pool": [
+            { "word": "SOLIDARNOŚĆ",   "definition": "Niezależny Samorządny Związek Zawodowy będący symbolem polskiego ruchu wolnościowego lat 80." },
+            { "word": "NIEPODLEGŁOŚĆ", "definition": "Stan wolności i suwerenności państwa od obcych wpływów; odzyskana przez Polskę w 1918 r." },
+            { "word": "DEMOKRACJA",    "definition": "System polityczny oparty na suwerenności narodu i zasadzie większości w podejmowaniu decyzji" }
+          ]
+        }
       ]
     }
   ]

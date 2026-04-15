@@ -14,12 +14,12 @@ export const LETTER_VALUES = {
 // { chipsMultiplier, multBonus, name }
 export const WORD_TIERS = [
   { minLen: 2, maxLen: 2, chipsMultiplier: 1.0, multBonus: 0,  name: 'Para',         color: '#6b7280' },
-  { minLen: 3, maxLen: 3, chipsMultiplier: 1.0, multBonus: 1,  name: 'Trójka',       color: '#3b82f6' },
-  { minLen: 4, maxLen: 4, chipsMultiplier: 1.0, multBonus: 2,  name: 'Czwórka',      color: '#8b5cf6' },
-  { minLen: 5, maxLen: 5, chipsMultiplier: 1.5, multBonus: 3,  name: 'Pięciorak',    color: '#f59e0b' },
-  { minLen: 6, maxLen: 6, chipsMultiplier: 2.0, multBonus: 5,  name: 'Szesciorak',   color: '#f97316' },
-  { minLen: 7, maxLen: 7, chipsMultiplier: 2.5, multBonus: 8,  name: 'Siedmiorak',   color: '#ef4444' },
-  { minLen: 8, maxLen: 8, chipsMultiplier: 3.0, multBonus: 12, name: 'Ósemka',       color: '#ec4899' },
+  { minLen: 3, maxLen: 3, chipsMultiplier: 1.5, multBonus: 2,  name: 'Trójka',       color: '#3b82f6' },
+  { minLen: 4, maxLen: 4, chipsMultiplier: 2.0, multBonus: 3,  name: 'Czwórka',      color: '#8b5cf6' },
+  { minLen: 5, maxLen: 5, chipsMultiplier: 2.5, multBonus: 5,  name: 'Pięciorak',    color: '#f59e0b' },
+  { minLen: 6, maxLen: 6, chipsMultiplier: 3.5, multBonus: 8,  name: 'Szesciorak',   color: '#f97316' },
+  { minLen: 7, maxLen: 7, chipsMultiplier: 4.5, multBonus: 12, name: 'Siedmiorak',   color: '#ef4444' },
+  { minLen: 8, maxLen: 8, chipsMultiplier: 6.0, multBonus: 18, name: 'Ósemka',       color: '#ec4899' },
 ];
 
 export function getTier(wordLength) {

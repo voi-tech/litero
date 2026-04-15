@@ -46,7 +46,10 @@ details summary { cursor: pointer; user-select: none; }
 .screen {
   display: none;
   min-height: 100dvh;
-  padding: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  padding-left: max(1rem, calc((100vw - 720px) / 2));
+  padding-right: max(1rem, calc((100vw - 720px) / 2));
   overflow-y: auto;
   flex-direction: column;
   align-items: stretch;
@@ -264,6 +267,10 @@ details summary { cursor: pointer; user-select: none; }
 .blind-type-badge.boss   { background: #7f1d1d; color: #fecaca; }
 
 .blind-card__word { font-size: 1.6rem; font-weight: 900; letter-spacing: .12em; color: var(--gold); }
+.word-hidden { color: var(--text-muted); letter-spacing: .35em; font-size: 1.3rem; }
+.word-revealed { color: var(--gold); }
+.skip-bonus-info { font-size: .8rem; color: var(--text-muted); margin-top: .3rem; }
+.skip-bonus-info strong { color: var(--gold); }
 .blind-card__definition { font-size: .82rem; color: var(--text-muted); line-height: 1.5; }
 .blind-card__target { font-size: .82rem; color: var(--accent); font-weight: 600; }
 
@@ -521,6 +528,7 @@ details summary { cursor: pointer; user-select: none; }
 }
 .game-actions .btn--danger { flex: 0 0 auto; }
 .game-actions .btn--primary { flex: 1; }
+.btn--chips-only { width: 100%; margin-top: .3rem; font-size: .82rem; opacity: .7; }
 
 /* Plays indicator */
 .plays-indicator {

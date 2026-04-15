@@ -51,7 +51,9 @@ export function renderMapScreen() {
       .map(b => b.categoryId)
   );
 
-  CATEGORIES.forEach((cat, idx) => {
+  const categories = gameState.shuffledCategories?.length ? gameState.shuffledCategories : CATEGORIES;
+
+  categories.forEach((cat, idx) => {
     const isCompleted = completedIds.has(cat.id);
     const isActive = idx === gameState.categoryIndex && !isCompleted;
     const isLocked = idx > gameState.categoryIndex;
@@ -115,6 +117,15 @@ function renderBlindCards() {
     const isDone = completedInCat.has(blind.id);
     const isCurrent = idx === gameState.blindIndex && !isDone;
 
+    // Użyj losowo wybranego słowa z puli (jeśli dostępne)
+    const activeBlind = gameState._activeBlindWords?.[idx] ?? blind;
+    const skipTag = gameState._pendingSkipTags?.[idx];
+
+    // Słowo ukryte dla nieukończonych blindów
+    const wordDisplay = isDone
+      ? `<span class="word-revealed">${activeBlind.word}</span>`
+      : `<span class="word-hidden">${activeBlind.word.split('').map(() => '_').join(' ')}</span>`;
+
     const card = document.createElement('div');
     card.className = `blind-card${isCurrent ? ' active-blind' : ''}${isDone ? ' done-blind' : ''}`;
 
@@ -125,13 +136,14 @@ function renderBlindCards() {
         }</span>
         <span class="blind-card__target">Cel: ${blind.targetScore} pkt</span>
       </div>
-      <div class="blind-card__word">${blind.word}</div>
-      <div class="blind-card__definition">${blind.definition}</div>
+      <div class="blind-card__word">${wordDisplay}</div>
+      <div class="blind-card__definition">${isDone ? activeBlind.definition : '???'}</div>
       ${isCurrent ? `
         <div class="skip-form">
           <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
           <button class="btn btn--primary btn--sm">Pomiń</button>
         </div>
+        ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${skipTag.label}</strong></div>` : ''}
         <div class="skip-feedback"></div>
         <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj blind</button>
       ` : ''}
@@ -320,11 +332,15 @@ export function showScorePopup({ word, result }) {
   const popup = document.getElementById('score-popup');
   if (!popup) return;
 
+  const detail = result.lettersOnly
+    ? `${result.chips} chipów (bez mnożnika)`
+    : `${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}`;
+
   popup.innerHTML = `
     <div class="score-popup__word">${word.toUpperCase()}</div>
     <div class="score-popup__value">+${result.score}</div>
     <div class="score-popup__tier" style="color:${result.tier.color}">${result.tier.name}</div>
-    <div class="score-popup__detail">${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}</div>
+    <div class="score-popup__detail">${detail}</div>
   `;
 
   popup.classList.add('show');
