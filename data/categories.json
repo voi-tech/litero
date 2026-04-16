@@ -3,7 +3,7 @@
     {
       "id": "filozofia",
       "name": "Filozofia",
-      "icon": "🧠",
+      "icon": "brain",
       "words": ["prawda", "dobro", "piękno", "logos", "etyka", "dusza", "rozum", "cnota", "wolność", "byt"],
       "blinds": [
         {
@@ -35,7 +35,7 @@
     {
       "id": "nauka",
       "name": "Nauka",
-      "icon": "🔬",
+      "icon": "microscope",
       "words": ["atom", "masa", "siła", "prąd", "falka", "enzym", "gen", "orbit", "foton", "neuron"],
       "blinds": [
         {
@@ -67,7 +67,7 @@
     {
       "id": "historia",
       "name": "Historia",
-      "icon": "⚔️",
+      "icon": "sword",
       "words": ["cesarz", "bitwa", "tron", "kronika", "dynastia", "edykt", "sejm", "hetman", "zamek", "rycerz"],
       "blinds": [
         {
@@ -99,7 +99,7 @@
     {
       "id": "kultura",
       "name": "Kultura i sztuka",
-      "icon": "🎨",
+      "icon": "palette",
       "words": ["sonata", "fresk", "opera", "sonet", "barok", "mural", "rzeźba", "farba", "rytm", "strofa"],
       "blinds": [
         {
@@ -131,7 +131,7 @@
     {
       "id": "geografia",
       "name": "Geografia",
-      "icon": "🌍",
+      "icon": "globe",
       "words": ["delta", "fiord", "step", "kanion", "laguna", "mierzeja", "atol", "depresja", "lodowiec", "monsun"],
       "blinds": [
         {
@@ -163,7 +163,7 @@
     {
       "id": "technika",
       "name": "Technika",
-      "icon": "⚙️",
+      "icon": "cog",
       "words": ["silnik", "tłok", "dźwig", "laser", "beton", "tranzystor", "antena", "pryzmat", "turbina", "kabel"],
       "blinds": [
         {
@@ -195,7 +195,7 @@
     {
       "id": "religia",
       "name": "Religia",
-      "icon": "✝️",
+      "icon": "cross",
       "words": ["modlitwa", "dogmat", "sakrament", "psalmy", "świątynia", "kapłan", "ofiara", "mistyk", "ikona", "rytuał"],
       "blinds": [
         {
@@ -227,7 +227,7 @@
     {
       "id": "gospodarka",
       "name": "Gospodarka",
-      "icon": "💰",
+      "icon": "landmark",
       "words": ["podatek", "inflacja", "kapitał", "eksport", "rynek", "akcja", "deficyt", "kurs", "popyt", "spółka"],
       "blinds": [
         {
@@ -259,7 +259,7 @@
     {
       "id": "spoleczenstwo",
       "name": "Społeczeństwo",
-      "icon": "👥",
+      "icon": "users",
       "words": ["prawo", "norma", "klasa", "kultura", "elita", "media", "protest", "integracja", "tożsamość", "wartość"],
       "blinds": [
         {
@@ -291,7 +291,7 @@
     {
       "id": "polska",
       "name": "Polska",
-      "icon": "🦅",
+      "icon": "shield",
       "words": ["mazurka", "szlachta", "sejm", "husarz", "piast", "orzeł", "wawel", "bursztyn", "wisła", "solidarność"],
       "blinds": [
         {

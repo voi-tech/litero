@@ -66,7 +66,7 @@ export function renderMapScreen() {
     const card = document.createElement('div');
     card.className = `category-card ${status}`;
     card.innerHTML = `
-      <div class="category-card__icon">${cat.icon}</div>
+      <div class="category-card__icon">${icon(cat.icon, 24)}</div>
       <div class="category-card__name">${cat.name}</div>
       <div class="category-card__status">${
         isCompleted ? 'Ukończona' :
@@ -83,6 +83,7 @@ export function renderMapScreen() {
 
     container.appendChild(card);
   });
+  initIcons();
 }
 
 // ---- Ekran wyboru blinda -------------------------------------------
@@ -93,7 +94,7 @@ export function renderBlindSelectScreen() {
   if (inkEl) inkEl.textContent = gameState.ink;
 
   const nameEl = document.getElementById('bs-category-name');
-  if (nameEl) nameEl.textContent = `${cat.icon} ${cat.name}`;
+  if (nameEl) { nameEl.innerHTML = `${icon(cat.icon, 18)} ${cat.name}`; initIcons(); }
 
   renderBlindCards();
 }
