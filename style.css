@@ -4,25 +4,26 @@
 
 /* --- CSS Variables --- */
 :root {
-  --bg:         #100f0f;
-  --bg2:        #1c1b1a;
-  --bg3:        #282726;
-  --border:     #403e3c;
-  --text:       #fffcf0;
-  --text-muted: #878580;
-  --accent:     #8b7ec8;
-  --accent2:    #4385be;
-  --green:      #879a39;
-  --red:        #d14d41;
-  --gold:       #d0a215;
-  --ink:        #3aa99f;
+  --bg:         #09090b;
+  --bg2:        rgba(255, 255, 255, 0.03);
+  --bg3:        rgba(255, 255, 255, 0.07);
+  --border:     rgba(255, 255, 255, 0.1);
+  --text:       #fafafa;
+  --text-muted: #a1a1aa;
+  --accent:     #a78bfa;
+  --accent2:    #60a5fa;
+  --green:      #a3e635;
+  --red:        #f87171;
+  --gold:       #fbbf24;
+  --ink:        #2dd4bf;
 
   --tile-size:    2.9rem;
   --tile-font:    1.15rem;
-  --radius:       0.6rem;
-  --radius-lg:    1rem;
-  --shadow:       0 4px 24px rgba(0,0,0,.5);
-  --shadow-tile:  0 2px 8px rgba(0,0,0,.4);
+  --radius:       0.75rem;
+  --radius-lg:    1.25rem;
+  --shadow:       0 8px 32px rgba(0,0,0,0.6);
+  --shadow-tile:  0 4px 12px rgba(0,0,0,0.4);
+  --glass-blur:   blur(12px);
 }
 
 /* --- Reset & Base --- */
@@ -31,8 +32,10 @@
 html, body {
   height: 100%;
   background: var(--bg);
+  background-image: radial-gradient(circle at 15% 50%, rgba(167, 139, 250, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(45, 212, 191, 0.08), transparent 25%);
   color: var(--text);
-  font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
   font-size: 17px;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -71,10 +74,16 @@ details summary { cursor: pointer; user-select: none; }
 }
 .btn:active { transform: scale(.96); }
 .btn--primary {
-  background: var(--accent);
-  color: #000;
+  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 14px rgba(167, 139, 250, 0.25);
 }
-.btn--primary:hover { filter: brightness(1.1); }
+.btn--primary:hover { 
+  filter: brightness(1.15); 
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
 .btn--danger {
   background: var(--red);
   color: #000;
@@ -201,19 +210,26 @@ details summary { cursor: pointer; user-select: none; }
 
 .category-card {
   background: var(--bg2);
-  border: 2px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem;
   cursor: pointer;
-  transition: border-color .2s, transform .15s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   gap: .3rem;
   touch-action: manipulation;
+  box-shadow: var(--shadow);
 }
-.category-card:active { transform: scale(.97); }
-.category-card.available { border-color: var(--accent2); }
-.category-card.available:hover { border-color: var(--accent); }
+.category-card:active { transform: scale(.95); }
+.category-card.available { border-color: rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.05); }
+.category-card.available:hover { 
+  border-color: var(--accent2); 
+  transform: translateY(-4px); 
+  box-shadow: 0 10px 25px rgba(96, 165, 250, 0.15);
+}
 .category-card.completed { border-color: var(--green); opacity: .65; cursor: default; }
 .category-card.locked { opacity: .35; cursor: not-allowed; }
 
@@ -324,24 +340,27 @@ details summary { cursor: pointer; user-select: none; }
    KAFELKI FIGUR (używane w wielu miejscach)
    ============================================= */
 .figure-card {
-  background: var(--bg3);
-  border: 2px solid var(--border);
+  background: var(--bg2);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: .6rem .75rem;
   display: flex;
   flex-direction: column;
   gap: .3rem;
   cursor: pointer;
-  transition: border-color .2s, transform .15s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 130px;
   max-width: 160px;
   touch-action: manipulation;
+  box-shadow: var(--shadow-tile);
 }
-.figure-card:hover { border-color: var(--accent); }
-.figure-card:active { transform: scale(.96); }
-.figure-card.selected { border-color: var(--accent); background: rgba(192,132,252,.12); }
-.figure-card.owned { border-color: var(--green); }
-.figure-card.legendary { border-color: var(--gold); }
+.figure-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(167,139,250,0.15); }
+.figure-card:active { transform: scale(.95); }
+.figure-card.selected { border-color: var(--accent); background: rgba(167,139,250,0.15); }
+.figure-card.owned { border-color: var(--green); background: rgba(163,230,53,0.05); }
+.figure-card.legendary { border-color: var(--gold); background: rgba(251,191,36,0.05); }
 
 .figure-card__icon { font-size: 1.4rem; line-height: 1; }
 .figure-card__name { font-size: .85rem; font-weight: 700; }
@@ -488,7 +507,9 @@ details summary { cursor: pointer; user-select: none; }
   height: clamp(2.1rem, calc((min(100vw, 480px) - 2.4rem - 7 * .3rem) / 8), var(--tile-size));
   font-size: clamp(.9rem, calc((min(100vw, 480px) - 2.4rem - 7 * .3rem) / 8 * 0.4), var(--tile-font));
   background: var(--bg2);
-  border: 2px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
   border-radius: .5rem;
   display: flex;
   flex-direction: column;
@@ -499,17 +520,19 @@ details summary { cursor: pointer; user-select: none; }
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
-  transition: background .15s, border-color .15s, transform .1s;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: var(--shadow-tile);
   position: relative;
 }
+.letter-tile:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.3); }
 .letter-tile:active { transform: scale(.92); }
 .letter-tile.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #000;
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(139,126,200,.4);
+  background: linear-gradient(135deg, rgba(167,139,250,0.8) 0%, rgba(96,165,250,0.8) 100%);
+  border-color: transparent;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(167,139,250,0.4);
 }
 .letter-tile__val {
   font-size: .55rem;

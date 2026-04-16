@@ -36,6 +36,7 @@ export const gameState = {
   // Ręka
   hand: [],
   letterPool: [],
+  discardPile: [],
   selectedIndices: [],
 
   // Odkryte litery docelowego słowa (Set indeksów)
@@ -100,6 +101,7 @@ export function startGame() {
   gameState.pendingTags = [];
   gameState.hand = hand;
   gameState.letterPool = pool;
+  gameState.discardPile = [];
   // Tasuj kategorie i przypisz progresywne cele (wzrost przez całą grę)
   const shuffled = [...CATEGORIES].sort(() => Math.random() - 0.5);
   gameState.shuffledCategories = shuffled.map((cat, i) => ({
@@ -207,10 +209,28 @@ export function toggleLetter(index) {
   emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
 }
 
-// ---- Sortowanie liter (wewnętrzne, wywoływane automatycznie) ----
+// ---- Tłumaczenie sortowania liter ------------------------------
 
 function sortHandInPlace() {
   gameState.hand = [...gameState.hand].sort((a, b) => a.localeCompare(b, 'pl'));
+}
+
+// ---- Dobieranie ze stosem odrzuconym ------------------------
+
+export function drawFromPool(count) {
+  const drawn = [];
+  while (drawn.length < count) {
+    if (gameState.letterPool.length === 0) {
+      if (gameState.discardPile && gameState.discardPile.length > 0) {
+        gameState.letterPool = shufflePool(gameState.discardPile);
+        gameState.discardPile = [];
+      } else {
+        gameState.letterPool = shufflePool(buildPool());
+      }
+    }
+    drawn.push(gameState.letterPool.shift());
+  }
+  return drawn;
 }
 
 // ---- Greedy word sequence detection -------------------------
@@ -342,10 +362,11 @@ export function playWord() {
     // Uzupełnij rękę max do 8 liter
     const handAfterPlay = hand.filter((_, i) => !selectedIndices.includes(i));
     const refillCountWords = Math.max(0, 8 - handAfterPlay.length);
-    let poolW = gameState.letterPool;
-    if (poolW.length < refillCountWords) poolW = [...poolW, ...shufflePool(buildPool())];
-    gameState.hand = [...handAfterPlay, ...poolW.slice(0, refillCountWords)];
-    gameState.letterPool = poolW.slice(refillCountWords);
+    if (!gameState.discardPile) gameState.discardPile = [];
+    gameState.discardPile.push(...wordLetters); // wrzuć zużyte na stos odrzuceń
+
+    const drawnChars = drawFromPool(refillCountWords);
+    gameState.hand = [...handAfterPlay, ...drawnChars];
     gameState.selectedIndices = [];
     sortHandInPlace();
 
@@ -382,10 +403,11 @@ export function playWord() {
     // Uzupełnij rękę max do 8 liter (surowe znaki)
     const handAfterRaw = hand.filter((_, i) => !selectedIndices.includes(i));
     const refillCountRaw = Math.max(0, 8 - handAfterRaw.length);
-    let poolR = gameState.letterPool;
-    if (poolR.length < refillCountRaw) poolR = [...poolR, ...shufflePool(buildPool())];
-    gameState.hand = [...handAfterRaw, ...poolR.slice(0, refillCountRaw)];
-    gameState.letterPool = poolR.slice(refillCountRaw);
+    if (!gameState.discardPile) gameState.discardPile = [];
+    gameState.discardPile.push(...wordLetters);
+
+    const drawnRaw = drawFromPool(refillCountRaw);
+    gameState.hand = [...handAfterRaw, ...drawnRaw];
     gameState.selectedIndices = [];
     sortHandInPlace();
     gameState.wordsPlayedThisRun.push({ word: fullWord, score: chips, categoryBonus: false });
@@ -436,25 +458,22 @@ export function discardLetters() {
     return;
   }
 
-  const currentSize = gameState.hand.length;
-  const discardCount = gameState.selectedIndices.length;
-  const sizeAfterRemoval = currentSize - discardCount;
-  const targetSize = Math.min(8, currentSize); // nie uzupełniaj ponad 8
-  const refillCount = Math.max(0, targetSize - sizeAfterRemoval);
-
+  const discardedLetters = gameState.selectedIndices.map(i => gameState.hand[i]);
+  
   // Usuń odrzucone litery z ręki
   const newHand = gameState.hand.filter((_, i) => !gameState.selectedIndices.includes(i));
+  
+  // Zawsze dąż do wypełnienia ręki limitowanej do 8 liter
+  const refillCount = Math.max(0, 8 - newHand.length);
 
-  // Dobierz tylko refillCount liter z puli
-  let pool = gameState.letterPool;
-  if (pool.length < refillCount) {
-    pool = [...pool, ...shufflePool(buildPool())];
-  }
-  const drawn = pool.slice(0, refillCount);
-  const remaining = pool.slice(refillCount);
+  // Dodaj do stosu odrzuceń!
+  if (!gameState.discardPile) gameState.discardPile = [];
+  gameState.discardPile.push(...discardedLetters);
+
+  // Używaj naszego nowego helpera
+  const drawn = drawFromPool(refillCount);
 
   gameState.hand = [...newHand, ...drawn];
-  gameState.letterPool = remaining;
   gameState.selectedIndices = [];
   sortHandInPlace();
   gameState.discardsLeft -= 1;

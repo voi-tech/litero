@@ -7,6 +7,18 @@ import { PASSIVE_BONUSES } from './passiveBonuses.js';
 import { LETTER_VALUES, getTier, scoreWord } from './scoring.js';
 import { icon, initIcons } from './icons.js';
 
+// ---- Helpers -------------------------------------------------------
+
+export function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ---- Przełączanie ekranów -------------------------------------------
 
 const screens = {};
@@ -67,7 +79,7 @@ export function renderMapScreen() {
     card.className = `category-card ${status}`;
     card.innerHTML = `
       <div class="category-card__icon">${icon(cat.icon, 24)}</div>
-      <div class="category-card__name">${cat.name}</div>
+      <div class="category-card__name">${escapeHTML(cat.name)}</div>
       <div class="category-card__status">${
         isCompleted ? 'Ukończona' :
         isActive    ? 'Aktywna'  :
@@ -127,20 +139,20 @@ function renderBlindCards() {
 
     card.innerHTML = `
       <div class="blind-card__header">
-        <span class="blind-type-badge ${blind.type}">${
+        <span class="blind-type-badge ${escapeHTML(blind.type)}">${
           blind.type === 'small' ? 'Szkic' : blind.type === 'big' ? 'Esej' : 'Traktat'
         }</span>
-        <span class="blind-card__target">Cel: ${blind.targetScore} pkt</span>
+        <span class="blind-card__target">Cel: ${Number(blind.targetScore)} pkt</span>
       </div>
       <div class="blind-card__word">${wordDisplay}</div>
-      <div class="blind-card__definition">${activeBlind.definition}</div>
+      <div class="blind-card__definition">${escapeHTML(activeBlind.definition)}</div>
       ${isCurrent ? `
         ${blind.type !== 'boss' ? `
           <div class="skip-form">
             <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
             <button class="btn btn--primary btn--sm">Pomiń</button>
           </div>
-          ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${skipTag.label}</strong></div>` : ''}
+          ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${escapeHTML(skipTag.label)}</strong></div>` : ''}
           <div class="skip-feedback"></div>
         ` : `<p class="boss-no-skip">Traktat nie może być pominięty</p>`}
         <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj</button>
@@ -202,11 +214,11 @@ function updateGameHeader() {
   const done = gameState.completedBlinds?.length ?? 0;
   const current = done + 1;
   const remaining = Math.max(0, total - current);
-  const catName = gameState.currentCategory?.name ?? '';
+  const catName = escapeHTML(gameState.currentCategory?.name ?? '');
   const blindTypeName = blind?.type === 'small' ? 'Szkic' : blind?.type === 'big' ? 'Esej' : 'Traktat';
   setEl('game-context', `Próba ${current} z ${total} • ${catName} — ${blindTypeName} • pozostało: ${remaining}`);
 
-  setEl('g-definition', blind?.definition ?? '');
+  setEl('g-definition', escapeHTML(blind?.definition ?? ''));
 
   // Bonus następnej rundy (ze skip/odgadnięcia)
   const bonusEl = document.getElementById('next-round-bonus');
