@@ -158,8 +158,14 @@ details summary { cursor: pointer; user-select: none; }
   color: var(--text-muted);
   line-height: 1.6;
 }
-.how-to-play__body li { padding-left: 1em; position: relative; }
-.how-to-play__body li::before { content: '•'; position: absolute; left: 0; color: var(--accent); }
+.how-to-play__goal {
+  color: var(--text);
+  font-weight: 600;
+  font-size: .92rem;
+  border-left: 3px solid var(--accent);
+  padding-left: .65rem;
+}
+.how-to-play__body li { padding-left: .25rem; list-style: none; }
 .how-to-play__body strong { color: var(--text); }
 .how-to-play__body em { color: var(--gold); font-style: normal; }
 .tier-grid {
