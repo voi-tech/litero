@@ -1,10 +1,11 @@
 // src/ui.js — zarządzanie ekranami i renderowanie UI
 
 import { emitter } from './eventEmitter.js';
-import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, guessBlindWord } from './game.js';
+import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, guessBlindWord, findWordSequence } from './game.js';
 import { FIGURES, getFigureCost } from './figures.js';
 import { PASSIVE_BONUSES } from './passiveBonuses.js';
-import { LETTER_VALUES, getTier } from './scoring.js';
+import { LETTER_VALUES, getTier, scoreWord } from './scoring.js';
+import { icon, initIcons } from './icons.js';
 
 // ---- Przełączanie ekranów -------------------------------------------
 
@@ -195,7 +196,7 @@ function updateGameHeader() {
   setEl('g-ink', gameState.ink);
   setEl('g-discards', gameState.discardsLeft);
 
-  // Informacja o próbie: "Próba X z N • Kategoria • pozostało: R"
+  // Informacja o próbie
   const total = (gameState.shuffledCategories?.length ?? 0) * 3;
   const done = gameState.completedBlinds?.length ?? 0;
   const current = done + 1;
@@ -205,6 +206,18 @@ function updateGameHeader() {
   setEl('game-context', `Próba ${current} z ${total} • ${catName} — ${blindTypeName} • pozostało: ${remaining}`);
 
   setEl('g-definition', blind?.definition ?? '');
+
+  // Bonus następnej rundy (ze skip/odgadnięcia)
+  const bonusEl = document.getElementById('next-round-bonus');
+  if (bonusEl) {
+    const tags = gameState.pendingTags ?? [];
+    if (tags.length > 0) {
+      bonusEl.textContent = `Bonus następna runda: ${tags.map(t => t.label).join(', ')}`;
+      bonusEl.style.display = '';
+    } else {
+      bonusEl.style.display = 'none';
+    }
+  }
 }
 
 function renderTargetWord() {
@@ -274,12 +287,13 @@ export function renderActiveFigures() {
     const card = document.createElement('div');
     card.className = 'figure-card active-figure-card passive-bonus-card';
     card.innerHTML = `
-      <div class="figure-card__icon">${bonus.icon}</div>
+      <div class="figure-card__icon">${icon(bonus.icon, 20)}</div>
       <div class="figure-card__name">${bonus.name}</div>
       <div class="figure-card__desc">${bonus.description}</div>
     `;
     container.appendChild(card);
   });
+  initIcons();
 }
 
 // Jednorazowe figury w ręce — jako pełne karty z przyciskiem Użyj
@@ -320,28 +334,59 @@ function renderPlayedWords() {
 function updateWordPreview() {
   const preview = document.getElementById('word-preview');
   const tierBadge = document.getElementById('word-tier-badge');
+  const scoreEl = document.getElementById('word-score-preview');
   if (!preview) return;
 
   preview.innerHTML = '';
 
   if (gameState.selectedIndices.length === 0) {
     if (tierBadge) tierBadge.textContent = '';
+    if (scoreEl) { scoreEl.textContent = ''; scoreEl.style.display = 'none'; }
     return;
   }
 
-  gameState.selectedIndices.forEach(idx => {
-    const letter = gameState.hand[idx];
+  const letters = gameState.selectedIndices.map(i => gameState.hand[i]);
+  letters.forEach(letter => {
     const tile = document.createElement('div');
     tile.className = 'preview-tile';
     tile.textContent = letter;
     preview.appendChild(tile);
   });
 
-  const len = gameState.selectedIndices.length;
-  const tier = getTier(len);
-  if (tierBadge) {
-    tierBadge.textContent = tier.name;
-    tierBadge.style.color = tier.color;
+  // Wykryj sekwencje słów (greedy)
+  const segments = findWordSequence(letters);
+  const wordSegs = segments.filter(s => s.word);
+
+  if (wordSegs.length === 0) {
+    if (tierBadge) { tierBadge.textContent = letters.length.toString(); tierBadge.style.color = 'var(--text-muted)'; }
+    if (scoreEl) { scoreEl.textContent = ''; scoreEl.style.display = 'none'; }
+  } else if (wordSegs.length === 1) {
+    const len = wordSegs[0].word.length;
+    const tier = getTier(len);
+    if (tierBadge) { tierBadge.textContent = len.toString(); tierBadge.style.color = tier.color; }
+  } else {
+    const label = wordSegs.map(s => s.word.length).join('+');
+    const totalLen = wordSegs.reduce((a, s) => a + s.word.length, 0);
+    const tier = getTier(totalLen);
+    if (tierBadge) { tierBadge.textContent = label; tierBadge.style.color = tier.color; }
+  }
+
+  // Podgląd wyniku — oblicz dla znalezionych słów
+  if (wordSegs.length > 0 && scoreEl) {
+    let totalScore = 0;
+    const catId = gameState.currentCategory?.id;
+    const catWords = gameState.currentCategory?.words ?? [];
+    const figs = gameState.activeFigures ?? [];
+    const figState = gameState._figureState ?? {};
+    wordSegs.forEach(seg => {
+      const r = scoreWord(seg.word, catId, catWords, figs, figState);
+      totalScore += r.score;
+    });
+    scoreEl.textContent = `+${totalScore}`;
+    scoreEl.style.display = '';
+  } else if (scoreEl) {
+    scoreEl.textContent = '';
+    scoreEl.style.display = 'none';
   }
 }
 
@@ -401,51 +446,24 @@ export function resetGuessForm() {
   if (input) input.value = '';
 }
 
-// ---- Score popup ---------------------------------------------------
+// ---- Score popup — usunięty, wynik widoczny inline w podglądzie słowa ---
 
-let popupTimer = null;
-
-export function showScorePopup({ word, result }) {
-  const popup = document.getElementById('score-popup');
-  if (!popup) return;
-
-  const detail = result.lettersOnly
-    ? `${result.chips} znaków (bez mnożnika)`
-    : `${result.chips} liter × ${result.mult} mnożnik${result.categoryBonus > 0 ? ' <span style="color:var(--accent)">+kat.</span>' : ''}`;
-
-  const extraLine = result.extraChips > 0
-    ? `<div class="score-popup__extra">+${result.extraChips} znaków z liter</div>`
-    : '';
-
-  popup.innerHTML = `
-    <div class="score-popup__word">${word.toUpperCase()}</div>
-    <div class="score-popup__value">+${result.score}</div>
-    <div class="score-popup__tier" style="color:${result.tier.color}">${result.tier.name}</div>
-    <div class="score-popup__detail">${detail}</div>
-    ${extraLine}
-  `;
-
-  popup.classList.add('show');
-  if (popupTimer) clearTimeout(popupTimer);
-  popupTimer = setTimeout(() => popup.classList.remove('show'), 1600);
-}
+export function showScorePopup() { /* wynik widoczny inline */ }
 
 export function showWordRejected(data) {
   const hand = document.getElementById('hand');
   if (!hand) return;
-
   hand.classList.add('invalid');
   setTimeout(() => hand.classList.remove('invalid'), 350);
 
-  const popup = document.getElementById('score-popup');
-  if (popup) {
-    popup.innerHTML = `<div style="color:var(--red);font-weight:700">${
-      data.bezblednik ? '(Bezbłędnik) Nieznane słowo' : 'Nieznane słowo'
-    }</div>`;
-    popup.classList.add('show');
-    if (popupTimer) clearTimeout(popupTimer);
-    popupTimer = setTimeout(() => popup.classList.remove('show'), 1200);
-  }
+  // Toast zamiast popupu
+  const msg = data.bezblednik ? '(Bezbłędnik) Nieznane słowo' : 'Nieznane słowo';
+  const toast = document.createElement('div');
+  toast.className = 'tag-toast';
+  toast.style.color = 'var(--red)';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1200);
 }
 
 // ---- Ekran podsumowania --------------------------------------------
@@ -453,7 +471,8 @@ export function showWordRejected(data) {
 export function renderSummaryScreen({ won, inkReward, score }) {
   const blind = gameState.currentBlind;
 
-  setEl('summary-result-icon', won ? '🏆' : '💀');
+  const iconEl = document.getElementById('summary-result-icon');
+  if (iconEl) { iconEl.innerHTML = won ? icon('trophy', 48) : icon('skull', 48); initIcons(); }
   setEl('summary-title', won ? 'Próba zaliczona!' : 'Próba nieudana');
   setEl('sum-score', score.toLocaleString('pl'));
   setEl('sum-target', blind?.targetScore?.toLocaleString('pl') ?? '0');
@@ -479,7 +498,8 @@ export function renderSummaryScreen({ won, inkReward, score }) {
 // ---- Ekran końcowy -------------------------------------------------
 
 export function renderEndScreen({ victory }) {
-  setEl('end-icon', victory ? '🎉' : '💀');
+  const endIconEl = document.getElementById('end-icon');
+  if (endIconEl) { endIconEl.innerHTML = victory ? icon('trophy', 56) : icon('skull', 56); initIcons(); }
   setEl('end-title', victory ? 'Zwycięstwo!' : 'Porażka');
   setEl('end-subtitle', victory
     ? 'Ukończyłeś wszystkie kategorie!'
@@ -538,21 +558,23 @@ export function buildFigureCardEl(fig, cost, showSell = false) {
   card.title = fig.linguisticMeaning || '';
 
   const canAfford = cost === 0 || gameState.ink >= cost;
+  const figIcon = icon(fig.icon, 20);
 
   card.innerHTML = `
-    <div class="figure-card__icon">${fig.icon}</div>
+    <div class="figure-card__icon">${figIcon}</div>
     <div class="figure-card__name">${fig.name}</div>
     <div class="figure-card__desc">${fig.description}</div>
     <div class="figure-card__cost" style="${!canAfford && !showSell ? 'color:var(--red)' : ''}">
-      ${cost > 0 ? `✦ ${cost}` : ''}
+      ${cost > 0 ? `${icon('droplet', 12)} ${cost}` : ''}
     </div>
     <div class="figure-card__rarity ${fig.rarity}">${
       fig.rarity === 'common' ? 'Pospolita' :
       fig.rarity === 'rare'   ? 'Rzadka'    : 'Legendarna'
     }</div>
-    ${showSell ? `<button class="sell-btn">Sprzedaj (✦${fig.sellValue ?? 1})</button>` : ''}
+    ${showSell ? `<button class="sell-btn">${icon('circle-dollar-sign', 13)} Sprzedaj (${fig.sellValue ?? 1})</button>` : ''}
   `;
 
+  initIcons();
   return card;
 }
 

@@ -11,7 +11,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'rare',
     cost: 5,
-    icon: '⬆',
+    icon: 'trending-up',
     sellValue: 3,
     hooks: {
       onBlindStart: (state) => {
@@ -28,7 +28,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'common',
     cost: 3,
-    icon: '↩',
+    icon: 'repeat',
     sellValue: 1,
     hooks: {},
     // efekt obsługiwany bezpośrednio w scoring.js
@@ -42,7 +42,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'common',
     cost: 3,
-    icon: 'Ą',
+    icon: 'flag',
     sellValue: 1,
     hooks: {},
     // efekt obsługiwany w scoring.js
@@ -56,7 +56,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'common',
     cost: 2,
-    icon: '−',
+    icon: 'minus-circle',
     sellValue: 1,
     hooks: {},
     // efekt w scriptorium.js: getFigureCost() sprawdza pleonazm
@@ -70,7 +70,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'rare',
     cost: 5,
-    icon: '⏱',
+    icon: 'clock',
     sellValue: 3,
     hooks: {
       onBlindStart: (state) => {
@@ -87,7 +87,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'rare',
     cost: 5,
-    icon: '✓',
+    icon: 'shield-check',
     sellValue: 3,
     hooks: {
       onBlindStart: (state) => {
@@ -104,7 +104,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'common',
     cost: 3,
-    icon: 'I',
+    icon: 'type',
     sellValue: 1,
     hooks: {},
     // efekt obsługiwany w scoring.js: pierwsza litera słowa daje val*2 znaków
@@ -118,7 +118,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'rare',
     cost: 4,
-    icon: '⚡',
+    icon: 'flame',
     sellValue: 2,
     hooks: {},
     // sprawdzane w game.js: _figureState.categoryStreak
@@ -132,7 +132,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'common',
     cost: 2,
-    icon: '✦',
+    icon: 'pen-line',
     sellValue: 1,
     hooks: {},
     // obsługiwane w game.js po zagraniu słowa
@@ -146,7 +146,7 @@ export const FIGURES = {
     type: 'passive',
     rarity: 'legendary',
     cost: 7,
-    icon: '★',
+    icon: 'star',
     sellValue: 4,
     hooks: {
       onBlindEnd: (state, inkReward) => {
@@ -168,7 +168,7 @@ export const FIGURES = {
     type: 'oneshot',
     rarity: 'common',
     cost: 2,
-    icon: '⏸',
+    icon: 'plus-circle',
     sellValue: 1,
     hooks: {
       onUse: (state) => {
@@ -186,7 +186,7 @@ export const FIGURES = {
     type: 'oneshot',
     rarity: 'rare',
     cost: 4,
-    icon: '◎',
+    icon: 'layers',
     sellValue: 2,
     hooks: {
       onUse: (state) => {
@@ -204,7 +204,7 @@ export const FIGURES = {
     type: 'oneshot',
     rarity: 'rare',
     cost: 3,
-    icon: '↺',
+    icon: 'rotate-ccw',
     sellValue: 2,
     hooks: {
       onUse: (state) => {
@@ -225,7 +225,7 @@ export const FIGURES = {
     type: 'oneshot',
     rarity: 'legendary',
     cost: 5,
-    icon: '×2',
+    icon: 'zap',
     sellValue: 3,
     hooks: {
       onUse: (state) => {
@@ -243,7 +243,7 @@ export const FIGURES = {
     type: 'oneshot',
     rarity: 'common',
     cost: 3,
-    icon: '▣',
+    icon: 'grid-2x2-plus',
     sellValue: 1,
     hooks: {
       onUse: (state) => {

@@ -20,6 +20,7 @@ import {
   resetGuessForm,
 } from './ui.js';
 import { openScriptorium, bindScriptoriumEvents } from './scriptorium.js';
+import { initIcons } from './icons.js';
 
 // ---- Bootstrap -------------------------------------------------------
 
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderStartScreen();
   showScreen('screen-start');
+  initIcons();
 });
 
 // ---- Statyczne eventy przycisków ------------------------------------
@@ -43,6 +45,11 @@ function bindStaticEvents() {
     if (gameState.phase !== 'summary') return;
     if (!gameState._summaryWon) {
       endGame(false);
+      return;
+    }
+    // Po odgadnięciu — pomiń Skryptorium
+    if (gameState._wonByGuess) {
+      closeScriptorium();
       return;
     }
     // Sprawdź czy to ostatni blind w grze

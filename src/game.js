@@ -215,7 +215,7 @@ function sortHandInPlace() {
 
 // ---- Greedy word sequence detection -------------------------
 
-function findWordSequence(letters) {
+export function findWordSequence(letters) {
   const segments = [];
   let i = 0;
   while (i < letters.length) {

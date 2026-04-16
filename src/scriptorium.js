@@ -5,9 +5,9 @@ import { gameState, addFigure, removeFigure, closeScriptorium, pickPassiveBonus 
 import { FIGURES, getFigureCost, getFigureSellValue } from './figures.js';
 import { PASSIVE_BONUSES, getRandomPassiveBonus } from './passiveBonuses.js';
 import { buildFigureCardEl, showScreen } from './ui.js';
+import { icon, initIcons } from './icons.js';
 
-let shopOffer = [];       // 3 figury retoryczne do kupienia
-let passiveBonusOffer = null; // 1 bonus pasywny (jeśli dostępny)
+let shopOffer = []; // 3 figury retoryczne do kupienia
 
 export function openScriptorium() {
   // Generuj ofertę: 3 figury których gracz nie posiada
@@ -15,10 +15,13 @@ export function openScriptorium() {
   const available = Object.values(FIGURES).filter(f => !owned.has(f.id));
   shopOffer = pickRandom(available, 3);
 
-  // Bonus pasywny: tylko jeśli boss pokonany i bonus jeszcze nie wybrany
-  passiveBonusOffer = null;
+  // Bonus pasywny: auto-przydziel po pokonaniu bossa
   if (gameState.hasDefeatedBoss && !gameState.passiveBonusTaken) {
-    passiveBonusOffer = getRandomPassiveBonus(gameState.passiveBonuses);
+    const bonus = getRandomPassiveBonus(gameState.passiveBonuses);
+    if (bonus) {
+      pickPassiveBonus(bonus.id);
+      showToast(`Bonus pasywny: ${bonus.name}!`, 'var(--green)');
+    }
   }
 
   renderSkryptorium();
@@ -33,7 +36,6 @@ function pickRandom(arr, count) {
 export function renderSkryptorium() {
   renderInk();
   renderShop();
-  renderPassiveBonus();
   renderOwnedFigures();
 }
 
@@ -80,30 +82,6 @@ function renderShop() {
   });
 }
 
-function renderPassiveBonus() {
-  const section = document.getElementById('scr-passive-section');
-  if (!section) return;
-
-  if (!passiveBonusOffer) {
-    section.style.display = 'none';
-    return;
-  }
-
-  section.style.display = '';
-  const container = document.getElementById('scr-passive-card');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const bonus = passiveBonusOffer;
-  const card = buildPassiveBonusCardEl(bonus);
-  card.addEventListener('click', () => {
-    pickPassiveBonus(bonus.id);
-    passiveBonusOffer = null;
-    renderSkryptorium();
-    showToast(`Bonus: ${bonus.name} aktywny!`);
-  });
-  container.appendChild(card);
-}
 
 function renderOwnedFigures() {
   const grid = document.getElementById('scr-active-grid');
@@ -201,12 +179,13 @@ export function buildPassiveBonusCardEl(bonus) {
   const card = document.createElement('div');
   card.className = 'figure-card passive-bonus-card';
   card.innerHTML = `
-    <div class="figure-card__icon">${bonus.icon}</div>
+    <div class="figure-card__icon">${icon(bonus.icon, 20)}</div>
     <div class="figure-card__name">${bonus.name}</div>
     <div class="figure-card__desc">${bonus.description}</div>
     <div class="figure-card__cost" style="color:var(--green)">Bezpłatny</div>
     <div class="figure-card__rarity passive">Bonus pasywny</div>
   `;
+  initIcons();
   return card;
 }
 
