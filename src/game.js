@@ -107,9 +107,9 @@ export function startGame() {
     blinds: cat.blinds.map(b => ({
       ...b,
       targetScore:
-        b.type === 'small' ? 80  + i * 55  :
-        b.type === 'big'   ? 160 + i * 110 :
-                             280 + i * 180,
+        b.type === 'small' ? 120 + i * 80  :
+        b.type === 'big'   ? 240 + i * 160 :
+                             420 + i * 270,
     })),
   }));
   gameState.passiveBonuses = [];
@@ -188,6 +188,7 @@ export function startBlind(blindIndex) {
   if (gameState.passiveBonuses.includes('pergamin')) gameState.discardsLeft += 1;
   if (gameState.passiveBonuses.includes('manuskrypt')) gameState.playsLeft += 1;
 
+  sortHandInPlace();
   gameState.phase = 'game';
   emitter.emit('blindStarted', { blind, state: gameState });
 }
@@ -206,12 +207,10 @@ export function toggleLetter(index) {
   emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
 }
 
-// ---- Sortowanie liter ----------------------------------------
+// ---- Sortowanie liter (wewnętrzne, wywoływane automatycznie) ----
 
-export function sortHand() {
+function sortHandInPlace() {
   gameState.hand = [...gameState.hand].sort((a, b) => a.localeCompare(b, 'pl'));
-  gameState.selectedIndices = [];
-  emitter.emit('handSorted', { state: gameState });
 }
 
 // ---- Greedy word sequence detection -------------------------
@@ -348,6 +347,7 @@ export function playWord() {
     gameState.hand = [...handAfterPlay, ...poolW.slice(0, refillCountWords)];
     gameState.letterPool = poolW.slice(refillCountWords);
     gameState.selectedIndices = [];
+    sortHandInPlace();
 
     for (const seg of validSegments) {
       const isCatWord = currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase());
@@ -387,6 +387,7 @@ export function playWord() {
     gameState.hand = [...handAfterRaw, ...poolR.slice(0, refillCountRaw)];
     gameState.letterPool = poolR.slice(refillCountRaw);
     gameState.selectedIndices = [];
+    sortHandInPlace();
     gameState.wordsPlayedThisRun.push({ word: fullWord, score: chips, categoryBonus: false });
     updateRevealedLetters();
 
@@ -455,6 +456,7 @@ export function discardLetters() {
   gameState.hand = [...newHand, ...drawn];
   gameState.letterPool = remaining;
   gameState.selectedIndices = [];
+  sortHandInPlace();
   gameState.discardsLeft -= 1;
 
   emitter.emit('lettersDiscarded', { state: gameState });

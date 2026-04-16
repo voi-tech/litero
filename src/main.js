@@ -1,7 +1,7 @@
 // src/main.js — bootstrap, routing, event bindings
 
 import { emitter } from './eventEmitter.js';
-import { initGame, startGame, playWord, discardLetters, gameState, endGame, sortHand, closeScriptorium } from './game.js';
+import { initGame, startGame, playWord, discardLetters, gameState, endGame, closeScriptorium } from './game.js';
 import {
   initScreens,
   showScreen,
@@ -62,8 +62,6 @@ function bindStaticEvents() {
   document.getElementById('btn-play')?.addEventListener('click', () => playWord());
   document.getElementById('btn-discard')?.addEventListener('click', () => discardLetters());
 
-  document.getElementById('btn-sort')?.addEventListener('click', () => sortHand());
-
   bindBlindSelectEvents();
   bindScriptoriumEvents();
 }
@@ -119,10 +117,6 @@ function bindGameEvents() {
 
   emitter.on('oneshotUsed', ({ result }) => {
     if (result?.message) showToast(result.message, 'var(--gold)');
-    updateGameAfterPlay();
-  });
-
-  emitter.on('handSorted', () => {
     updateGameAfterPlay();
   });
 

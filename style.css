@@ -401,9 +401,10 @@ details summary { cursor: pointer; user-select: none; }
 .target-word {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: .3rem;
+  flex-wrap: nowrap;
+  gap: .25rem;
   margin-bottom: .3rem;
+  overflow: visible;
 }
 .target-tile {
   width: 2.1rem;
@@ -466,10 +467,10 @@ details summary { cursor: pointer; user-select: none; }
   min-height: 1.2em;
 }
 
-/* Ręka */
+/* Ręka — 2 rzędy po 4 */
 .hand {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, var(--tile-size));
   gap: .45rem;
   justify-content: center;
   padding: .3rem 0;
@@ -718,9 +719,10 @@ details summary { cursor: pointer; user-select: none; }
    GAME ACTIONS — równe przyciski
    ============================================= */
 .game-actions .btn {
-  padding: .65rem 1.4rem;
-  font-size: 1rem;
+  padding: .55rem .6rem;
+  font-size: .88rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 /* =============================================

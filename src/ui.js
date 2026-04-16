@@ -1,7 +1,7 @@
 // src/ui.js — zarządzanie ekranami i renderowanie UI
 
 import { emitter } from './eventEmitter.js';
-import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, sortHand, guessBlindWord } from './game.js';
+import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, guessBlindWord } from './game.js';
 import { FIGURES, getFigureCost } from './figures.js';
 import { PASSIVE_BONUSES } from './passiveBonuses.js';
 import { LETTER_VALUES, getTier } from './scoring.js';
@@ -214,10 +214,17 @@ function renderTargetWord() {
   const word = gameState.currentBlind.word.toUpperCase();
   container.innerHTML = '';
 
+  // Skaluj kafelki zależnie od długości słowa
+  const len = word.length;
+  const tileW = len <= 6 ? '2.1rem' : len <= 8 ? '1.8rem' : len <= 10 ? '1.5rem' : len <= 12 ? '1.3rem' : '1.1rem';
+  const tileH = len <= 6 ? '2.4rem' : len <= 8 ? '2.0rem' : len <= 10 ? '1.7rem' : len <= 12 ? '1.45rem' : '1.2rem';
+  const tileF = len <= 6 ? '1rem'   : len <= 8 ? '.85rem'  : len <= 10 ? '.75rem'  : len <= 12 ? '.65rem'  : '.55rem';
+
   for (let i = 0; i < word.length; i++) {
     const tile = document.createElement('div');
     tile.className = 'target-tile' + (gameState.revealedLetters.has(i) ? ' revealed' : '');
     tile.textContent = gameState.revealedLetters.has(i) ? word[i] : '_';
+    tile.style.cssText = `width:${tileW};height:${tileH};font-size:${tileF};`;
     container.appendChild(tile);
   }
 }
