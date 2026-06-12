@@ -10,6 +10,8 @@ const LETTER_FREQ = {
 
 export const ALPHABET = Object.keys(LETTER_FREQ);
 
+const HAND_SIZE = 8;
+
 // Zbuduj pulę wszystkich liter wg częstości (~100 kafelków)
 export function buildPool() {
   const pool = [];
@@ -19,65 +21,21 @@ export function buildPool() {
   return pool;
 }
 
-// Fisher-Yates shuffle
-export function shufflePool(pool) {
+// Fisher-Yates shuffle (zwraca nową tablicę)
+export function shufflePool(pool, rng = Math.random) {
   const arr = [...pool];
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
 }
 
-// Pobierz N liter z puli (z początku)
-export function drawLetters(pool, count) {
-  if (pool.length < count) {
-    // Uzupełnij pulę świeżą potasowaną talią jeśli za mało
-    const refill = shufflePool(buildPool());
-    pool = [...pool, ...refill];
-  }
-  return {
-    letters: pool.slice(0, count),
-    remaining: pool.slice(count),
-  };
-}
-
 // Zbuduj rękę 8 liter (nowa potasowana pula)
-export function buildHand() {
-  const pool = shufflePool(buildPool());
+export function buildHand(rng = Math.random) {
+  const pool = shufflePool(buildPool(), rng);
   return {
-    hand: pool.slice(0, 8),
-    pool: pool.slice(8),
+    hand: pool.slice(0, HAND_SIZE),
+    pool: pool.slice(HAND_SIZE),
   };
-}
-
-// Uzupełnij rękę po zagraniu/odrzuceniu
-// usedIndices: indeksy liter usuniętych z ręki
-export function replenishHand(hand, usedIndices, pool) {
-  // Usuń użyte litery z ręki (zaznaczone indeksy)
-  const newHand = hand.filter((_, i) => !usedIndices.includes(i));
-  const count = usedIndices.length;
-
-  if (pool.length < count) {
-    pool = [...pool, ...shufflePool(buildPool())];
-  }
-
-  const drawn = pool.slice(0, count);
-  const remaining = pool.slice(count);
-
-  return {
-    hand: [...newHand, ...drawn],
-    pool: remaining,
-  };
-}
-
-// Czy dane litery są podzbiorem ręki gracza (można je ułożyć)
-export function canFormWord(selectedLetters, hand) {
-  const handCopy = [...hand];
-  for (const letter of selectedLetters) {
-    const idx = handCopy.indexOf(letter);
-    if (idx === -1) return false;
-    handCopy.splice(idx, 1);
-  }
-  return true;
 }

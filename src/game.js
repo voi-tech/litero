@@ -2,15 +2,47 @@
 
 import { emitter } from './eventEmitter.js';
 import categoriesData from '../data/categories.json';
-import { buildHand, replenishHand, drawLetters, shufflePool, buildPool } from './letters.js';
+import { buildHand, shufflePool, buildPool } from './letters.js';
 import { loadDictionary, isValidWord } from './dictionary.js';
-import { scoreWord, calcInkReward, LETTER_VALUES, getTier, WORD_TIERS } from './scoring.js';
-import { applyFigureHooks, FIGURES, getFigureSellValue, setReplenishHand } from './figures.js';
-
-// Podpięcie replenishHand pod figures.js (unikamy circular import)
-setReplenishHand(replenishHand);
+import { scorePlaySegments, calcInkReward, LETTER_VALUES } from './scoring.js';
+import { applyFigureHooks, FIGURES, getFigureSellValue } from './figures.js';
+import { applySaveToState } from './persistence.js';
+import { hashSeed, localDateString, nextRandom } from './rng.js';
 
 export const CATEGORIES = categoriesData.categories;
+
+// ---- Stałe rozgrywki ----------------------------------------
+
+export const HAND_SIZE = 8;
+export const BASE_PLAYS = 5;
+export const BASE_DISCARDS = 3;
+export const MAX_PASSIVE_FIGURES = 5;
+export const MAX_ONESHOT_FIGURES = 3;
+
+// Cele blindów rosną wraz z liczbą ukończonych kategorii
+export const BLIND_TARGETS = {
+  small: { base: 120, step: 80, lateStep: 50 },
+  big:   { base: 240, step: 160, lateStep: 100 },
+  boss:  { base: 420, step: 270, lateStep: 170 },
+};
+
+export const DIFFICULTIES = {
+  szkolny: {
+    id: 'szkolny',
+    label: 'Szkolny',
+    targetMultiplier: 0.7,
+    basePlays: 6,
+  },
+  akademicki: {
+    id: 'akademicki',
+    label: 'Akademicki',
+    targetMultiplier: 1,
+    basePlays: BASE_PLAYS,
+  },
+};
+
+const HIGHSCORE_KEY = 'litero_highscore';
+const DAILY_RESULT_PREFIX = 'litero_daily_result_v1:';
 
 // ---- Stan gry -----------------------------------------------
 
@@ -18,6 +50,11 @@ export const gameState = {
   phase: 'start', // start | map | blind-select | game | summary | scriptorium | victory | defeat
 
   // Progres
+  difficulty: 'akademicki',
+  mode: 'normal',
+  dailyDate: null,
+  runSeed: null,
+  _rngState: 1,
   categoryIndex: 0,
   blindIndex: 0,          // 0=small 1=big 2=boss
   completedBlinds: [],    // [{ categoryId, blindId, skipped, score }]
@@ -29,9 +66,11 @@ export const gameState = {
   currentBlind: null,
   currentCategory: null,
   runningScore: 0,
-  playsLeft: 5,
-  discardsLeft: 3,
+  playsLeft: BASE_PLAYS,
+  discardsLeft: BASE_DISCARDS,
   playsUsedThisBlind: 0,
+  maxPlaysThisBlind: BASE_PLAYS,
+  guessAttemptedThisBlind: false,
 
   // Ręka
   hand: [],
@@ -56,40 +95,68 @@ export const gameState = {
   totalScore: 0,
   wordsPlayedThisRun: [],
   wordsPlayedThisBlind: [],  // reset per blind
+  _playOrder: 0,
   highScore: 0,
 
-  // Tagi (bonusy ze skipowania)
+  // Tagi (bonusy ze skipowania) — konsumowane na starcie kolejnego blinda
   pendingTags: [],
 
   // Potasowana kolejność kategorii (nowa per rozgrywka)
   shuffledCategories: [],
 
-  // Aktywne słowa blindów (losowane z pool przy enterCategory)
+  // Cache wylosowanych haseł i tagów per kategoria
+  // (powrót na mapę nie reroluje haseł)
+  _categoryBlindCache: {},
+
+  // Aktywne słowa blindów bieżącej kategorii
   _activeBlindWords: [],
 
-  // Pre-generowane tagi skip (jedna per blind, losowane przy enterCategory)
+  // Pre-generowane tagi skip (jedna per blind)
   _pendingSkipTags: [],
 
-  // Bonusy pasywne
+  // Bonusy pasywne — jeden za każdego pokonanego bossa
   passiveBonuses: [],
-  hasDefeatedBoss: false,
-  passiveBonusTaken: false,
+  bossesDefeated: 0,
+
+  // Skryptorium
+  scriptoriumOffer: [],
+  _scriptoriumBlindKey: null,
+  lastInterestReward: 0,
 };
 
 // ---- Init ---------------------------------------------------
 
 export function initGame() {
-  loadDictionary();
-  const hs = localStorage.getItem('litero_highscore');
+  const hs = localStorage.getItem(HIGHSCORE_KEY);
   gameState.highScore = hs ? parseInt(hs, 10) : 0;
+  return loadDictionary();
+}
+
+// ---- Wznowienie zapisanego runa ------------------------------
+
+export function restoreRun(saved) {
+  applySaveToState(saved, gameState);
+  emitter.emit('runRestored', { state: gameState });
 }
 
 // ---- Start nowej gry ----------------------------------------
 
-export function startGame() {
-  const { hand, pool } = buildHand();
+export function startGame(options = {}) {
+  const difficulty = DIFFICULTIES[options.difficulty]?.id ?? 'akademicki';
+  const mode = options.mode === 'daily' ? 'daily' : 'normal';
+  const dailyDate = mode === 'daily' ? (options.dailyDate ?? localDateString()) : null;
+  const runSeed = mode === 'daily'
+    ? `daily:${dailyDate}:${difficulty}`
+    : `normal:${Date.now()}:${Math.random()}`;
+  gameState._rngState = hashSeed(runSeed);
+  gameState.mode = mode;
+  gameState.dailyDate = dailyDate;
+  gameState.runSeed = runSeed;
+
+  const { hand, pool } = buildHand(randomFloat);
 
   gameState.phase = 'map';
+  gameState.difficulty = difficulty;
   gameState.categoryIndex = 0;
   gameState.blindIndex = 0;
   gameState.completedBlinds = [];
@@ -98,60 +165,106 @@ export function startGame() {
   gameState.handFigures = [];
   gameState.totalScore = 0;
   gameState.wordsPlayedThisRun = [];
+  gameState._playOrder = 0;
   gameState.pendingTags = [];
   gameState.hand = hand;
   gameState.letterPool = pool;
   gameState.discardPile = [];
-  // Tasuj kategorie i przypisz progresywne cele (wzrost przez całą grę)
-  const shuffled = [...CATEGORIES].sort(() => Math.random() - 0.5);
-  gameState.shuffledCategories = shuffled.map((cat, i) => ({
-    ...cat,
-    blinds: cat.blinds.map(b => ({
-      ...b,
-      targetScore:
-        b.type === 'small' ? 120 + i * 80  :
-        b.type === 'big'   ? 240 + i * 160 :
-                             420 + i * 270,
-    })),
-  }));
+  gameState.shuffledCategories = shuffleArray(CATEGORIES);
+  gameState._categoryBlindCache = {};
+  gameState._activeBlindWords = [];
+  gameState._pendingSkipTags = [];
   gameState.passiveBonuses = [];
-  gameState.hasDefeatedBoss = false;
-  gameState.passiveBonusTaken = false;
+  gameState.bossesDefeated = 0;
+  gameState.scriptoriumOffer = [];
+  gameState._scriptoriumBlindKey = null;
+  gameState.lastInterestReward = 0;
 
   emitter.emit('gameStarted', { state: gameState });
+}
+
+// ---- Postęp kategorii ---------------------------------------
+
+export function isCategoryCompleted(category) {
+  const doneIds = completedBlindIds(category.id);
+  return category.blinds.every(b => doneIds.has(b.id));
+}
+
+export function allCategoriesCompleted() {
+  return gameState.shuffledCategories.every(isCategoryCompleted);
+}
+
+function completedBlindIds(categoryId) {
+  return new Set(
+    gameState.completedBlinds
+      .filter(b => b.categoryId === categoryId)
+      .map(b => b.blindId)
+  );
+}
+
+function completedCategoriesCount() {
+  return gameState.shuffledCategories.filter(isCategoryCompleted).length;
 }
 
 // ---- Wejście w kategorię ------------------------------------
 
 export function enterCategory(categoryIndex) {
+  const category = gameState.shuffledCategories[categoryIndex];
+  if (!category || isCategoryCompleted(category)) return;
+
   gameState.categoryIndex = categoryIndex;
-  gameState.blindIndex = 0;
-  gameState.currentCategory = gameState.shuffledCategories[categoryIndex];
+  gameState.currentCategory = category;
+
+  // Hasła i cele losowane tylko przy pierwszym wejściu —
+  // powrót na mapę i ponowne wejście nie reroluje blindów
+  let cached = gameState._categoryBlindCache[category.id];
+  if (!cached) {
+    const progress = completedCategoriesCount();
+    cached = {
+      blindWords: category.blinds.map(blind => {
+        const pick = blind.pool[Math.floor(randomFloat() * blind.pool.length)];
+        const t = BLIND_TARGETS[blind.type] ?? BLIND_TARGETS.small;
+        return {
+          ...blind,
+          word: pick.word,
+          definition: pick.definition,
+          targetScore: getTargetScore(t, progress),
+        };
+      }),
+      skipTags: category.blinds.map(() => randomTag()),
+    };
+    gameState._categoryBlindCache[category.id] = cached;
+  }
+  gameState._activeBlindWords = cached.blindWords;
+  gameState._pendingSkipTags = cached.skipTags;
+
+  // Wznów od pierwszego nieukończonego blinda
+  const doneIds = completedBlindIds(category.id);
+  const firstOpen = category.blinds.findIndex(b => !doneIds.has(b.id));
+  gameState.blindIndex = firstOpen === -1 ? 0 : firstOpen;
+
   gameState.phase = 'blind-select';
-
-  // Losuj słowa blindów z puli
-  gameState._activeBlindWords = gameState.currentCategory.blinds.map(blind => {
-    const pick = blind.pool[Math.floor(Math.random() * blind.pool.length)];
-    return { ...blind, word: pick.word, definition: pick.definition };
-  });
-
-  // Pre-generuj tagi za skip (jeden na blind)
-  gameState._pendingSkipTags = gameState.currentCategory.blinds.map(() => randomTag());
-
   emitter.emit('categoryEntered', { state: gameState });
+}
+
+// ---- Powrót na mapę -----------------------------------------
+
+export function returnToMap() {
+  if (gameState.phase !== 'blind-select') return;
+  gameState.phase = 'map';
+  emitter.emit('returnedToMap', { state: gameState });
 }
 
 // ---- Próba pominięcia blinda --------------------------------
 
 export function trySkipBlind(blindIndex, attempt) {
   const blind = gameState._activeBlindWords[blindIndex];
-  if (blind.type === 'boss') return false; // Traktat nie może być pominięty
+  if (!blind || blind.type === 'boss') return false; // Traktat nie może być pominięty
 
   const correct = attempt.trim().toUpperCase() === blind.word.toUpperCase();
 
   if (correct) {
     const tag = gameState._pendingSkipTags[blindIndex];
-    gameState.pendingTags.push(tag);
     applyTag(tag);
     gameState.completedBlinds.push({
       categoryId: gameState.currentCategory.id,
@@ -160,7 +273,7 @@ export function trySkipBlind(blindIndex, attempt) {
       score: 0,
     });
     emitter.emit('blindSkipped', { blind, tag, state: gameState });
-    advanceAfterBlind(true);
+    advanceAfterBlind();
   } else {
     startBlind(blindIndex);
   }
@@ -174,21 +287,32 @@ export function startBlind(blindIndex) {
   const blind = gameState._activeBlindWords[blindIndex];
   gameState.currentBlind = blind;
   gameState.runningScore = 0;
-  gameState.playsLeft = 5;
-  gameState.discardsLeft = 3;
+  gameState.playsLeft = DIFFICULTIES[gameState.difficulty]?.basePlays ?? BASE_PLAYS;
+  gameState.discardsLeft = BASE_DISCARDS;
   gameState.playsUsedThisBlind = 0;
   gameState.selectedIndices = [];
+  gameState.guessAttemptedThisBlind = false;
   gameState.revealedLetters = new Set();
   gameState.categoryStreak = 0;
   gameState._figureState = {};
   gameState.wordsPlayedThisBlind = [];
 
-  // Hooki onBlindStart (hiperbola, litotes, bezblednik)
+  // Hooki onBlindStart (litotes, bezblednik)
   applyFigureHooks(gameState.activeFigures, 'onBlindStart', gameState);
 
   // Bonusy pasywne: pergamin (+1 odrzucenie), manuskrypt (+1 zagranie)
   if (gameState.passiveBonuses.includes('pergamin')) gameState.discardsLeft += 1;
   if (gameState.passiveBonuses.includes('manuskrypt')) gameState.playsLeft += 1;
+
+  // Konsumuj tagi za pominięte blindy
+  for (const tag of gameState.pendingTags) {
+    if (tag.id === 'play1') gameState.playsLeft += 1;
+    if (tag.id === 'discard1') gameState.discardsLeft += 1;
+    if (tag.id === 'mult15') gameState._figureState.mult15 = true;
+  }
+  gameState.pendingTags = [];
+
+  gameState.maxPlaysThisBlind = gameState.playsLeft;
 
   sortHandInPlace();
   gameState.phase = 'game';
@@ -209,7 +333,34 @@ export function toggleLetter(index) {
   emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
 }
 
-// ---- Tłumaczenie sortowania liter ------------------------------
+export function clearSelection() {
+  if (gameState.phase !== 'game') return;
+  if (gameState.selectedIndices.length === 0) return;
+  gameState.selectedIndices = [];
+  emitter.emit('selectionChanged', { selectedIndices: [] });
+}
+
+export function removeLastSelectedLetter() {
+  if (gameState.phase !== 'game') return;
+  if (gameState.selectedIndices.length === 0) return;
+  gameState.selectedIndices.pop();
+  emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
+}
+
+export function selectFirstMatchingLetter(letter) {
+  if (gameState.phase !== 'game') return false;
+  const normalized = String(letter ?? '').trim().toUpperCase();
+  if (!normalized) return false;
+  const idx = gameState.hand.findIndex((item, index) =>
+    item.toUpperCase() === normalized && !gameState.selectedIndices.includes(index)
+  );
+  if (idx === -1) return false;
+  gameState.selectedIndices.push(idx);
+  emitter.emit('selectionChanged', { selectedIndices: [...gameState.selectedIndices] });
+  return true;
+}
+
+// ---- Sortowanie ręki ----------------------------------------
 
 function sortHandInPlace() {
   gameState.hand = [...gameState.hand].sort((a, b) => a.localeCompare(b, 'pl'));
@@ -221,16 +372,27 @@ export function drawFromPool(count) {
   const drawn = [];
   while (drawn.length < count) {
     if (gameState.letterPool.length === 0) {
-      if (gameState.discardPile && gameState.discardPile.length > 0) {
-        gameState.letterPool = shufflePool(gameState.discardPile);
+      if (gameState.discardPile.length > 0) {
+        gameState.letterPool = shufflePool(gameState.discardPile, randomFloat);
         gameState.discardPile = [];
       } else {
-        gameState.letterPool = shufflePool(buildPool());
+        gameState.letterPool = shufflePool(buildPool(), randomFloat);
       }
     }
     drawn.push(gameState.letterPool.shift());
   }
   return drawn;
+}
+
+// Usuń zagrane/odrzucone litery z ręki i dobierz do pełnej ręki
+function removeFromHandAndRefill(indices, letters) {
+  const newHand = gameState.hand.filter((_, i) => !indices.includes(i));
+  gameState.discardPile.push(...letters);
+  const refillCount = Math.max(0, HAND_SIZE - newHand.length);
+  const drawn = drawFromPool(refillCount);
+  gameState.hand = [...newHand, ...drawn];
+  gameState.selectedIndices = [];
+  sortHandInPlace();
 }
 
 // ---- Greedy word sequence detection -------------------------
@@ -257,76 +419,23 @@ export function findWordSequence(letters) {
   return segments;
 }
 
-// ---- Scoring dla jednego lub wielu słów ----------------------
-
-function scorePlay(validSegments, extraSegments, currentCategory, activeFigures) {
-  const passiveBonuses = gameState.passiveBonuses;
-  const figureState = {
-    emfazaActive: gameState._figureState.emfazaActive,
-    synekdochaActive: gameState._figureState.synekdochaActive,
-    komboBonus: activeFigures.includes('kombo') && gameState.categoryStreak >= 2,
-    pioro: passiveBonuses.includes('pioro'),
-    iluminacja: passiveBonuses.includes('iluminacja'),
-    folio: passiveBonuses.includes('folio'),
-  };
-
-  // Chips z liter wszystkich słów
-  const polishLetters = ['Ą','Ć','Ę','Ł','Ń','Ó','Ś','Ź','Ż'];
-  let totalChips = 0;
-  let totalWordLen = 0;
-  let totalCategoryBonus = 0;
-  let totalPolishCount = 0;
-
-  for (const seg of validSegments) {
-    const letters = seg.word.toUpperCase().split('');
-    totalWordLen += letters.length;
-    for (let i = 0; i < letters.length; i++) {
-      let val = LETTER_VALUES[letters[i]] ?? 1;
-      if (activeFigures.includes('aliteracja')) {
-        if (letters.filter(l => l === letters[i]).length > 1) val *= 2;
-      }
-      if (i === 0 && activeFigures.includes('inicjal')) val *= 2;
-      totalChips += val;
-    }
-    totalPolishCount += letters.filter(l => polishLetters.includes(l)).length;
-    if (currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase())) {
-      totalCategoryBonus += figureState.iluminacja ? 5 : 3;
-    }
-  }
-
-  // Tier na podstawie łącznej długości słów
-  const tier = getTier(totalWordLen) || WORD_TIERS[0];
-  totalChips = Math.floor(totalChips * tier.chipsMultiplier);
-
-  if (figureState.synekdochaActive) totalChips *= 2;
-  if (figureState.pioro) totalChips *= 2;
-
-  // Mnożnik
-  let mult = 1 + tier.multBonus + totalCategoryBonus;
-  if (activeFigures.includes('polonizm')) mult += totalPolishCount * 2;
-  if (figureState.komboBonus) mult += 5;
-  if (figureState.folio && totalWordLen >= 6) mult = Math.round(mult * 1.5);
-  if (figureState.emfazaActive) mult *= 2;
-  if (activeFigures.includes('hiperbola') && mult < 2) mult = 2;
-
-  const baseScore = Math.floor(totalChips * mult);
-
-  // Surowe znaki z dodatkowych liter
-  let extraChips = 0;
-  for (const seg of extraSegments) {
-    extraChips += LETTER_VALUES[seg.letter.toUpperCase()] ?? 1;
-  }
-
+// Kontekst punktacji — wspólny dla zagrania i podglądu w UI
+export function buildScoringContext() {
   return {
-    chips: totalChips,
-    mult,
-    score: baseScore + extraChips,
-    tier,
-    categoryBonus: totalCategoryBonus,
-    figureBonus: 0,
-    extraChips,
-    words: validSegments.map(s => s.word),
+    categoryWords: gameState.currentCategory?.words ?? [],
+    activeFigures: gameState.activeFigures,
+    passiveBonuses: gameState.passiveBonuses,
+    figureState: gameState._figureState,
+    categoryStreak: gameState.categoryStreak,
   };
+}
+
+export function getTargetScore(targetConfig, completedCategories) {
+  const earlyProgress = Math.min(5, completedCategories);
+  const lateProgress = Math.max(0, completedCategories - 5);
+  const raw = targetConfig.base + earlyProgress * targetConfig.step + lateProgress * targetConfig.lateStep;
+  const multiplier = DIFFICULTIES[gameState.difficulty]?.targetMultiplier ?? 1;
+  return Math.max(1, Math.round(raw * multiplier));
 }
 
 // ---- Zagranie słowa -----------------------------------------
@@ -336,89 +445,67 @@ export function playWord() {
   const { selectedIndices, hand, currentBlind, currentCategory, activeFigures } = gameState;
 
   if (selectedIndices.length < 1) {
-    emitter.emit('discardFailed', { reason: 'nothing_selected' });
+    emitter.emit('playFailed', { reason: 'nothing_selected' });
     return;
   }
 
-  const wordLetters = selectedIndices.map(i => hand[i]);
-  const segments = findWordSequence(wordLetters);
+  const playedLetters = selectedIndices.map(i => hand[i]);
+  const segments = findWordSequence(playedLetters);
   const validSegments = segments.filter(s => s.word);
   const extraSegments = segments.filter(s => !s.word);
 
-  if (validSegments.length > 0) {
-    // --- Słowa znalezione ---
-    const result = scorePlay(validSegments, extraSegments, currentCategory, activeFigures);
-    gameState._figureState.emfazaActive = false;
-    gameState._figureState.synekdochaActive = false;
-
-    if (result.categoryBonus > 0) gameState.categoryStreak += 1;
-    else gameState.categoryStreak = 0;
-
-    gameState.runningScore += result.score;
-    gameState.playsLeft -= 1;
-    gameState.playsUsedThisBlind += 1;
-    if (activeFigures.includes('skryba')) gameState.ink += 2;
-
-    // Uzupełnij rękę max do 8 liter
-    const handAfterPlay = hand.filter((_, i) => !selectedIndices.includes(i));
-    const refillCountWords = Math.max(0, 8 - handAfterPlay.length);
-    if (!gameState.discardPile) gameState.discardPile = [];
-    gameState.discardPile.push(...wordLetters); // wrzuć zużyte na stos odrzuceń
-
-    const drawnChars = drawFromPool(refillCountWords);
-    gameState.hand = [...handAfterPlay, ...drawnChars];
+  // Bezbłędnik: pierwsze zagranie bez żadnego słowa nie kosztuje zagrania
+  if (
+    validSegments.length === 0 &&
+    activeFigures.includes('bezblednik') &&
+    !gameState._figureState.bezblednikUsed
+  ) {
+    gameState._figureState.bezblednikUsed = true;
     gameState.selectedIndices = [];
-    sortHandInPlace();
+    emitter.emit('wordRejected', { reason: 'invalid', bezblednik: true });
+    emitter.emit('selectionChanged', { selectedIndices: [] });
+    return;
+  }
 
+  const result = scorePlaySegments(validSegments, extraSegments, buildScoringContext());
+
+  // Efekty jednorazowe zużywają się przy zagraniu
+  gameState._figureState.emfazaActive = false;
+  gameState._figureState.synekdochaActive = false;
+
+  gameState.categoryStreak = result.categoryBonus > 0 ? gameState.categoryStreak + 1 : 0;
+
+  gameState.runningScore += result.score;
+  gameState.playsLeft -= 1;
+  gameState.playsUsedThisBlind += 1;
+  if (activeFigures.includes('skryba')) gameState.ink += 2;
+
+  removeFromHandAndRefill(selectedIndices, playedLetters);
+
+  const categoryMatches = [];
+  if (validSegments.length > 0) {
     for (const seg of validSegments) {
       const isCatWord = currentCategory.words.some(w => w.toLowerCase() === seg.word.toLowerCase());
-      gameState.wordsPlayedThisRun.push({ word: seg.word, score: 0, categoryBonus: isCatWord });
+      if (isCatWord) categoryMatches.push(seg.word);
       gameState.wordsPlayedThisBlind.push(seg.word);
     }
-    updateRevealedLetters();
-
-    const displayWord = validSegments.map(s => s.word).join(' + ');
-    emitter.emit('wordPlayed', { word: displayWord, result, state: gameState });
-
-  } else {
-    // --- Brak słowa: surowe znaki ---
-    if (activeFigures.includes('bezblednik') && !gameState._figureState.bezblednikUsed) {
-      gameState._figureState.bezblednikUsed = true;
-      emitter.emit('wordRejected', { reason: 'invalid', bezblednik: true });
-      gameState.selectedIndices = [];
-      emitter.emit('selectionChanged', { selectedIndices: [] });
-      return;
-    }
-
-    let chips = 0;
-    const fullWord = wordLetters.join('');
-    for (const idx of selectedIndices) {
-      chips += (LETTER_VALUES[hand[idx].toUpperCase()] ?? 1);
-    }
-    gameState.runningScore += chips;
-    gameState.playsLeft -= 1;
-    gameState.playsUsedThisBlind += 1;
-    if (activeFigures.includes('skryba')) gameState.ink += 2;
-
-    // Uzupełnij rękę max do 8 liter (surowe znaki)
-    const handAfterRaw = hand.filter((_, i) => !selectedIndices.includes(i));
-    const refillCountRaw = Math.max(0, 8 - handAfterRaw.length);
-    if (!gameState.discardPile) gameState.discardPile = [];
-    gameState.discardPile.push(...wordLetters);
-
-    const drawnRaw = drawFromPool(refillCountRaw);
-    gameState.hand = [...handAfterRaw, ...drawnRaw];
-    gameState.selectedIndices = [];
-    sortHandInPlace();
-    gameState.wordsPlayedThisRun.push({ word: fullWord, score: chips, categoryBonus: false });
-    updateRevealedLetters();
-
-    emitter.emit('wordPlayed', {
-      word: fullWord,
-      result: { score: chips, chips, mult: 1, tier: { name: 'Litery', color: '#6b7280' }, categoryBonus: 0, lettersOnly: true },
-      state: gameState,
-    });
   }
+  gameState.wordsPlayedThisRun.push({
+    playedText: validSegments.length > 0 ? validSegments.map(s => s.word).join(' + ') : playedLetters.join(''),
+    words: validSegments.map(s => s.word),
+    score: result.score,
+    letters: playedLetters,
+    categoryMatches,
+    categoryBonus: categoryMatches.length > 0,
+    order: ++gameState._playOrder,
+    timestamp: Date.now(),
+  });
+  updateRevealedLetters();
+
+  const displayWord = validSegments.length > 0
+    ? validSegments.map(s => s.word).join(' + ')
+    : playedLetters.join('');
+  emitter.emit('wordPlayed', { word: displayWord, result, state: gameState });
 
   if (gameState.runningScore >= currentBlind.targetScore) endBlind(true);
   else if (gameState.playsLeft <= 0) endBlind(false);
@@ -427,6 +514,7 @@ export function playWord() {
 // Proporcjonalne odkrywanie liter docelowego słowa
 function updateRevealedLetters() {
   const word = gameState.currentBlind?.word ?? '';
+  if (!word) return;
   const progress = Math.min(1, gameState.runningScore / gameState.currentBlind.targetScore);
   const toReveal = Math.floor(progress * word.length);
   for (let i = 0; i < toReveal; i++) {
@@ -438,9 +526,16 @@ function updateRevealedLetters() {
 
 export function guessBlindWord(attempt) {
   if (gameState.phase !== 'game') return false;
+  if (gameState.guessAttemptedThisBlind) {
+    emitter.emit('guessRejected', { reason: 'already_attempted', state: gameState });
+    return false;
+  }
   const correct = attempt.trim().toUpperCase() === gameState.currentBlind.word.toUpperCase();
   if (correct) {
     endBlind(true, { wonByGuess: true });
+  } else {
+    gameState.guessAttemptedThisBlind = true;
+    emitter.emit('guessRejected', { reason: 'incorrect', state: gameState });
   }
   return correct;
 }
@@ -458,25 +553,12 @@ export function discardLetters() {
     return;
   }
 
-  const discardedLetters = gameState.selectedIndices.map(i => gameState.hand[i]);
-  
-  // Usuń odrzucone litery z ręki
-  const newHand = gameState.hand.filter((_, i) => !gameState.selectedIndices.includes(i));
-  
-  // Zawsze dąż do wypełnienia ręki limitowanej do 8 liter
-  const refillCount = Math.max(0, 8 - newHand.length);
-
-  // Dodaj do stosu odrzuceń!
-  if (!gameState.discardPile) gameState.discardPile = [];
-  gameState.discardPile.push(...discardedLetters);
-
-  // Używaj naszego nowego helpera
-  const drawn = drawFromPool(refillCount);
-
-  gameState.hand = [...newHand, ...drawn];
-  gameState.selectedIndices = [];
-  sortHandInPlace();
+  const discarded = gameState.selectedIndices.map(i => gameState.hand[i]);
+  removeFromHandAndRefill(gameState.selectedIndices, discarded);
   gameState.discardsLeft -= 1;
+  if (gameState.activeFigures.includes('apostrofa')) {
+    gameState._figureState.apostrofaMult = (gameState._figureState.apostrofaMult ?? 0) + 1;
+  }
 
   emitter.emit('lettersDiscarded', { state: gameState });
   emitter.emit('selectionChanged', { selectedIndices: [] });
@@ -506,7 +588,7 @@ function endBlind(won, opts = {}) {
   // Atrament za wygranie
   let inkReward = 0;
   if (won) {
-    inkReward = calcInkReward(gameState.playsUsedThisBlind, 5, true);
+    inkReward = calcInkReward(gameState.playsUsedThisBlind, gameState.maxPlaysThisBlind, true);
     if (gameState.passiveBonuses.includes('kalamarz')) inkReward += 2;
 
     inkReward = applyFigureHooks(
@@ -525,40 +607,36 @@ function endBlind(won, opts = {}) {
       score: gameState.runningScore,
     });
 
-    // Sprawdź czy boss pokonany
     if (gameState.currentBlind.type === 'boss') {
-      gameState.hasDefeatedBoss = true;
+      gameState.bossesDefeated += 1;
     }
   }
 
   gameState._summaryWon = won;
   gameState._wonByGuess = opts.wonByGuess || false;
+  gameState._lastInkReward = inkReward; // do odtworzenia ekranu podsumowania po wznowieniu
   emitter.emit('blindEnded', { won, inkReward, score: gameState.runningScore, wonByGuess: opts.wonByGuess, state: gameState });
 }
 
 // Po zamknięciu Skryptorium
 export function closeScriptorium() {
-  advanceAfterBlind(false);
+  advanceAfterBlind();
 }
 
-function advanceAfterBlind(skipped) {
-  const category = gameState.shuffledCategories[gameState.categoryIndex];
-  const nextBlindIndex = gameState.blindIndex + 1;
+function advanceAfterBlind() {
+  const category = gameState.currentCategory;
+  const doneIds = completedBlindIds(category.id);
+  const nextOpen = category.blinds.findIndex(b => !doneIds.has(b.id));
 
-  if (nextBlindIndex < category.blinds.length) {
-    gameState.blindIndex = nextBlindIndex;
+  if (nextOpen !== -1) {
+    gameState.blindIndex = nextOpen;
     gameState.phase = 'blind-select';
     emitter.emit('nextBlind', { state: gameState });
+  } else if (allCategoriesCompleted()) {
+    endGame(true);
   } else {
-    const nextCategoryIndex = gameState.categoryIndex + 1;
-    if (nextCategoryIndex < gameState.shuffledCategories.length) {
-      gameState.categoryIndex = nextCategoryIndex;
-      gameState.blindIndex = 0;
-      gameState.phase = 'map';
-      emitter.emit('categoryCompleted', { state: gameState });
-    } else {
-      endGame(true);
-    }
+    gameState.phase = 'map';
+    emitter.emit('categoryCompleted', { state: gameState });
   }
 }
 
@@ -569,7 +647,10 @@ export function endGame(victory) {
 
   if (gameState.totalScore > gameState.highScore) {
     gameState.highScore = gameState.totalScore;
-    localStorage.setItem('litero_highscore', String(gameState.totalScore));
+    localStorage.setItem(HIGHSCORE_KEY, String(gameState.totalScore));
+  }
+  if (gameState.mode === 'daily' && gameState.dailyDate) {
+    saveDailyResult(victory);
   }
 
   emitter.emit('gameOver', { victory, state: gameState });
@@ -582,11 +663,11 @@ export function addFigure(figureId) {
   if (!fig) return false;
 
   if (fig.type === 'passive') {
-    if (gameState.activeFigures.length >= 5) return false;
+    if (gameState.activeFigures.length >= MAX_PASSIVE_FIGURES) return false;
     if (gameState.activeFigures.includes(figureId)) return false;
     gameState.activeFigures.push(figureId);
   } else {
-    if (gameState.handFigures.length >= 3) return false; // max 3 jednorazowe
+    if (gameState.handFigures.length >= MAX_ONESHOT_FIGURES) return false;
     gameState.handFigures.push(figureId);
   }
   return true;
@@ -613,25 +694,83 @@ export function removeFigure(figureId) {
 // ---- Bonusy pasywne -----------------------------------------
 
 export function pickPassiveBonus(bonusId) {
-  if (gameState.passiveBonusTaken) return false;
+  if (gameState.passiveBonuses.includes(bonusId)) return false;
   gameState.passiveBonuses.push(bonusId);
-  gameState.passiveBonusTaken = true;
   emitter.emit('passiveBonusPicked', { bonusId, state: gameState });
   return true;
 }
 
 // ---- Helpers ------------------------------------------------
 
+export function randomFloat() {
+  const next = nextRandom(gameState._rngState);
+  gameState._rngState = next.state;
+  return next.value;
+}
+
+function shuffleArray(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFloat() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// Tagi za pominięcie blinda. 'ink3' działa natychmiast,
+// pozostałe trafiają do pendingTags i są konsumowane w startBlind.
+const SKIP_TAGS = [
+  { id: 'ink3',     label: '+3 atrament' },
+  { id: 'play1',    label: '+1 zagranie (następny blind)' },
+  { id: 'discard1', label: '+1 odrzucenie (następny blind)' },
+  { id: 'mult15',   label: 'Mnożnik od ×1.5 (następny blind)' },
+];
+
 function randomTag() {
-  const tags = [
-    { id: 'ink3',     label: '+3 atrament',          apply: s => { s.ink += 3; } },
-    { id: 'play1',    label: '+1 zagranie (next)',    apply: s => { s._pendingExtraPlay = (s._pendingExtraPlay||0)+1; } },
-    { id: 'discard1', label: '+1 odrzucenie',         apply: s => { s.discardsLeft += 1; } },
-    { id: 'mult15',   label: 'Mnożnik startuje od ×1.5 (next)', apply: s => { s._pendingMult15 = true; } },
-  ];
-  return tags[Math.floor(Math.random() * tags.length)];
+  return SKIP_TAGS[Math.floor(randomFloat() * SKIP_TAGS.length)];
 }
 
 function applyTag(tag) {
-  tag.apply(gameState);
+  if (tag.id === 'ink3') {
+    gameState.ink += 3;
+  } else {
+    gameState.pendingTags.push(tag);
+  }
+}
+
+function saveDailyResult(victory) {
+  const key = `${DAILY_RESULT_PREFIX}${gameState.dailyDate}`;
+  const completedCategories = gameState.shuffledCategories.filter(isCategoryCompleted).length;
+  const result = {
+    date: gameState.dailyDate,
+    difficulty: gameState.difficulty,
+    victory,
+    score: gameState.totalScore,
+    completedCategories,
+    completedBlinds: gameState.completedBlinds.length,
+  };
+  try {
+    const previous = JSON.parse(localStorage.getItem(key) ?? 'null');
+    if (!previous || result.score > previous.score) {
+      localStorage.setItem(key, JSON.stringify(result));
+    }
+  } catch {
+    localStorage.setItem(key, JSON.stringify(result));
+  }
+}
+
+export function buildDailyShareText() {
+  const totalCategories = gameState.shuffledCategories.length || CATEGORIES.length;
+  const completedCategories = gameState.shuffledCategories.filter(isCategoryCompleted).length;
+  const marks = gameState.shuffledCategories
+    .map(category => isCategoryCompleted(category) ? '🟩' : '⬛')
+    .join('');
+  const difficulty = DIFFICULTIES[gameState.difficulty]?.label ?? 'Akademicki';
+  return [
+    `Litero Daily ${gameState.dailyDate ?? localDateString()}`,
+    difficulty,
+    `Wynik: ${gameState.totalScore.toLocaleString('pl')}`,
+    `Kategorie: ${completedCategories}/${totalCategories}`,
+    marks,
+  ].join('\n');
 }

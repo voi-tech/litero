@@ -2,11 +2,16 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Litero — polska gra słowna inspirowana Balatro. Układaj słowa z liter, zdobywaj punkty i kupuj figury retoryczne." />
+  <meta name="theme-color" content="#a78bfa" />
+  <meta property="og:title" content="Litero" />
+  <meta property="og:description" content="Polska gra słowna inspirowana Balatro." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.svg" />
   <title>Litero</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -24,7 +29,31 @@
       <span class="value" id="hs-value">0</span>
     </div>
 
+    <div class="difficulty-picker" role="group" aria-label="Poziom trudności">
+      <button class="difficulty-option" data-difficulty="szkolny" type="button">
+        <span>Szkolny</span>
+        <small>cele −30%, 6 zagrań</small>
+      </button>
+      <button class="difficulty-option active" data-difficulty="akademicki" type="button">
+        <span>Akademicki</span>
+        <small>obecny balans</small>
+      </button>
+    </div>
+
     <button class="btn btn--primary btn--large" id="btn-start">Zagraj</button>
+    <button class="btn btn--ghost btn--large" id="btn-daily">Tryb dzienny</button>
+    <button class="btn btn--ghost btn--large" id="btn-continue" style="display:none">Kontynuuj grę</button>
+
+    <div class="save-modal" id="save-overwrite-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="save-overwrite-title">
+      <div class="save-modal__panel">
+        <h2 id="save-overwrite-title">Nadpisać zapis?</h2>
+        <p>Masz rozpoczęty run. Nowa gra usunie obecny zapis.</p>
+        <div class="save-modal__actions">
+          <button class="btn btn--ghost" id="btn-overwrite-cancel">Wróć</button>
+          <button class="btn btn--danger" id="btn-overwrite-confirm">Zagraj od nowa</button>
+        </div>
+      </div>
+    </div>
 
     <div class="how-to-play">
       <div class="how-to-play__body">
@@ -57,6 +86,9 @@
 <!-- ===== EKRAN WYBORU BLINDA ===== -->
 <div id="screen-blind-select" class="screen">
   <div class="screen-header">
+    <button class="btn btn--ghost btn--sm" id="blind-back-btn" aria-label="Wróć do mapy kategorii">
+      <i data-lucide="arrow-left" width="15" height="15"></i> Mapa
+    </button>
     <div class="ink-display">
       <i data-lucide="droplet" width="14" height="14"></i><span id="bs-ink-value">0</span>
     </div>
@@ -112,6 +144,7 @@
     <div class="word-preview-meta">
       <div class="word-tier-badge" id="word-tier-badge"></div>
       <div class="word-score-preview" id="word-score-preview"></div>
+      <button class="selection-clear-btn" id="btn-clear-selection" aria-label="Wyczyść wybór liter" title="Wyczyść wybór">×</button>
     </div>
   </div>
 
@@ -120,10 +153,10 @@
 
   <!-- Przyciski akcji -->
   <div class="game-actions">
-    <button class="btn btn--danger" id="btn-discard">
+    <button class="btn btn--danger" id="btn-discard" aria-label="Odrzuć zaznaczone litery">
       <i data-lucide="trash-2" width="16" height="16"></i> (<span id="g-discards">3</span>)
     </button>
-    <button class="btn btn--primary" id="btn-play">
+    <button class="btn btn--primary" id="btn-play" aria-label="Zagraj zaznaczone litery">
       <i data-lucide="play" width="16" height="16"></i> (<span id="g-plays">5</span>)
     </button>
   </div>
@@ -175,7 +208,11 @@
     <!-- Sklep: figury do kupienia -->
     <section class="scr-shop">
       <h3>Wymień atrament na figurę retoryczną</h3>
+      <p class="scr-interest" id="scr-interest-value">Odsetki: +0</p>
       <div class="figure-grid" id="scr-shop-grid"></div>
+      <button class="btn btn--ghost" id="btn-scr-reroll">
+        <i data-lucide="refresh-cw" width="15" height="15"></i> Reroll oferty (2)
+      </button>
       <button class="btn btn--primary" id="btn-scr-close">Następna strona</button>
     </section>
 
@@ -193,6 +230,7 @@
     <div class="end-icon" id="end-icon"></div>
     <h1 id="end-title"></h1>
     <p id="end-subtitle"></p>
+    <p class="end-difficulty" id="end-difficulty"></p>
     <div class="end-stats">
       <div class="end-stat">
         <span class="label">Łączny wynik</span>
@@ -206,13 +244,29 @@
         <span class="label">Zagrane słowa</span>
         <span class="value" id="end-words-count">0</span>
       </div>
+      <div class="end-stat">
+        <span class="label">Najlepsze zagranie</span>
+        <span class="value" id="end-best-play">0</span>
+      </div>
+      <div class="end-stat">
+        <span class="label">Najdłuższe słowo</span>
+        <span class="value" id="end-longest-word">—</span>
+      </div>
+      <div class="end-stat">
+        <span class="label">Słowa kategorii</span>
+        <span class="value" id="end-category-words">0</span>
+      </div>
+      <div class="end-stat">
+        <span class="label">Najczęstsza litera</span>
+        <span class="value" id="end-common-letter">—</span>
+      </div>
     </div>
     <div class="end-words-list" id="end-words-list"></div>
+    <button class="btn btn--ghost btn--large" id="btn-share-daily" style="display:none">Udostępnij wynik</button>
     <button class="btn btn--primary btn--large" id="btn-play-again">Zagraj ponownie</button>
   </div>
 </div>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="src/main.js"></script>
 <p class="credits-line">Słownik: <a href="https://sjp.pl/sl/growy/" target="_blank" rel="noopener">SJP.PL</a></p>
 </body>

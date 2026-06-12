@@ -13,11 +13,8 @@ export const FIGURES = {
     cost: 5,
     icon: 'trending-up',
     sellValue: 3,
-    hooks: {
-      onBlindStart: (state) => {
-        state._figureState.hiperbola = true;
-      },
-    },
+    hooks: {},
+    // efekt obsługiwany w scoring.js (minimalny mnożnik ×2)
   },
 
   aliteracja: {
@@ -158,6 +155,49 @@ export const FIGURES = {
     },
   },
 
+  lakonizm: {
+    id: 'lakonizm',
+    name: 'Lakonizm',
+    description: 'Słowa 3-literowe punktują tierem 5-literowych',
+    linguisticMeaning: 'Zwięzły, oszczędny sposób wypowiedzi',
+    type: 'passive',
+    rarity: 'rare',
+    cost: 5,
+    icon: 'text-cursor-input',
+    sellValue: 3,
+    hooks: {},
+  },
+
+  inwersja: {
+    id: 'inwersja',
+    name: 'Inwersja',
+    description: 'Ostatnia litera każdego słowa daje 4× znaków',
+    linguisticMeaning: 'Przestawny szyk wyrazów w zdaniu',
+    type: 'passive',
+    rarity: 'rare',
+    cost: 5,
+    icon: 'flip-horizontal-2',
+    sellValue: 3,
+    hooks: {},
+  },
+
+  apostrofa: {
+    id: 'apostrofa',
+    name: 'Apostrofa',
+    description: 'Każde odrzucenie daje +1 mnożnik do końca blinda',
+    linguisticMeaning: 'Bezpośredni, uroczysty zwrot do osoby lub pojęcia',
+    type: 'passive',
+    rarity: 'common',
+    cost: 4,
+    icon: 'message-circle',
+    sellValue: 2,
+    hooks: {
+      onBlindStart: (state) => {
+        state._figureState.apostrofaMult = 0;
+      },
+    },
+  },
+
   // ---- JEDNORAZOWE (5) ----------------------------------------
 
   elipsa: {
@@ -208,7 +248,7 @@ export const FIGURES = {
     sellValue: 2,
     hooks: {
       onUse: (state) => {
-        if (state.playsLeft < 5) {
+        if (state.playsLeft < (state.maxPlaysThisBlind ?? 5)) {
           state.playsLeft += 1;
           return { message: '+1 zagranie!' };
         }
@@ -256,10 +296,6 @@ export const FIGURES = {
   },
 };
 
-// Pomocnicza — zachowana dla kompatybilności (akrostych już nie wymaga replenishHand)
-let import_replenishHand = null;
-export function setReplenishHand(fn) { import_replenishHand = fn; }
-
 // ---- Hook dispatch ------------------------------------------
 
 export function applyFigureHooks(figureIds, hookName, state, ...args) {
@@ -277,12 +313,8 @@ export function applyFigureHooks(figureIds, hookName, state, ...args) {
 
 const RARITY_WEIGHTS = { common: 5, rare: 2, legendary: 1 };
 
-export function getRandomFigures(count, excludeIds = [], ante = 1) {
-  const pool = Object.values(FIGURES).filter(f => {
-    if (excludeIds.includes(f.id)) return false;
-    if (ante < 2 && f.rarity === 'legendary') return false;
-    return true;
-  });
+export function getRandomFigures(count, excludeIds = [], rng = Math.random) {
+  const pool = Object.values(FIGURES).filter(f => !excludeIds.includes(f.id));
 
   const weighted = [];
   for (const fig of pool) {
@@ -292,12 +324,13 @@ export function getRandomFigures(count, excludeIds = [], ante = 1) {
 
   const result = [];
   const seen = new Set();
-  const shuffled = [...weighted].sort(() => Math.random() - 0.5);
-  for (const fig of shuffled) {
+  while (weighted.length > 0 && result.length < count) {
+    const idx = Math.floor(rng() * weighted.length);
+    const fig = weighted[idx];
+    weighted.splice(idx, 1);
     if (!seen.has(fig.id)) {
       seen.add(fig.id);
       result.push(fig);
-      if (result.length >= count) break;
     }
   }
   return result;

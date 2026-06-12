@@ -45,8 +45,8 @@ export const PASSIVE_BONUSES = {
   },
 };
 
-export function getRandomPassiveBonus(excludeIds = []) {
+export function getRandomPassiveBonus(excludeIds = [], rng = Math.random) {
   const pool = Object.values(PASSIVE_BONUSES).filter(b => !excludeIds.includes(b.id));
   if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(rng() * pool.length)];
 }

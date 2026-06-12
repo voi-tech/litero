@@ -1,10 +1,14 @@
 // src/ui.js — zarządzanie ekranami i renderowanie UI
 
-import { emitter } from './eventEmitter.js';
-import { CATEGORIES, gameState, toggleLetter, playWord, discardLetters, useOneshotFigure, trySkipBlind, enterCategory, startBlind, guessBlindWord, findWordSequence } from './game.js';
-import { FIGURES, getFigureCost } from './figures.js';
+import {
+  gameState, toggleLetter, useOneshotFigure, trySkipBlind, enterCategory,
+  startBlind, guessBlindWord, findWordSequence, buildScoringContext,
+  isCategoryCompleted, allCategoriesCompleted, returnToMap,
+  clearSelection, DIFFICULTIES,
+} from './game.js';
+import { FIGURES } from './figures.js';
 import { PASSIVE_BONUSES } from './passiveBonuses.js';
-import { LETTER_VALUES, getTier, scoreWord } from './scoring.js';
+import { LETTER_VALUES, getTier, scorePlaySegments } from './scoring.js';
 import { icon, initIcons } from './icons.js';
 
 // ---- Helpers -------------------------------------------------------
@@ -17,6 +21,17 @@ export function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Wspólny toast — jedyne miejsce tworzenia powiadomień
+export function showToast(message, color = 'var(--text)', duration = 1800) {
+  const toast = document.createElement('div');
+  toast.className = 'tag-toast';
+  toast.style.color = color;
+  toast.setAttribute('role', 'status');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
 }
 
 // ---- Przełączanie ekranów -------------------------------------------
@@ -54,42 +69,33 @@ export function renderMapScreen() {
   if (!container) return;
   container.innerHTML = '';
 
-  const completedIds = new Set(
-    gameState.completedBlinds
-      .filter(b => {
-        const catBlinds = gameState.completedBlinds.filter(x => x.categoryId === b.categoryId);
-        const cat = CATEGORIES.find(c => c.id === b.categoryId);
-        return cat && catBlinds.length >= cat.blinds.length;
-      })
-      .map(b => b.categoryId)
-  );
-
-  const categories = gameState.shuffledCategories?.length ? gameState.shuffledCategories : CATEGORIES;
+  const categories = gameState.shuffledCategories;
 
   categories.forEach((cat, idx) => {
-    const isCompleted = completedIds.has(cat.id);
-    const isActive = idx === gameState.categoryIndex && !isCompleted;
-    const isLocked = idx > gameState.categoryIndex;
+    const isCompleted = isCategoryCompleted(cat);
+    const hasProgress = gameState.completedBlinds.some(b => b.categoryId === cat.id);
 
-    let status = 'locked';
-    if (isCompleted) status = 'completed';
-    else if (isActive || idx < gameState.categoryIndex) status = 'available';
+    const status = isCompleted ? 'completed' : 'available';
+    const statusLabel = isCompleted
+      ? 'Ukończona'
+      : hasProgress ? 'W trakcie' : 'Dostępna';
 
     const card = document.createElement('div');
     card.className = `category-card ${status}`;
     card.innerHTML = `
       <div class="category-card__icon">${icon(cat.icon, 24)}</div>
       <div class="category-card__name">${escapeHTML(cat.name)}</div>
-      <div class="category-card__status">${
-        isCompleted ? 'Ukończona' :
-        isActive    ? 'Aktywna'  :
-        isLocked    ? 'Zablokowana' : 'Dostępna'
-      }</div>
+      <div class="category-card__status">${statusLabel}</div>
     `;
 
-    if (status === 'available') {
-      card.addEventListener('click', () => {
-        enterCategory(idx);
+    if (!isCompleted) {
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `Kategoria ${cat.name} — ${statusLabel}`);
+      const activate = () => enterCategory(idx);
+      card.addEventListener('click', activate);
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
       });
     }
 
@@ -106,7 +112,7 @@ export function renderBlindSelectScreen() {
   if (inkEl) inkEl.textContent = gameState.ink;
 
   const nameEl = document.getElementById('bs-category-name');
-  if (nameEl) { nameEl.innerHTML = `${icon(cat.icon, 18)} ${cat.name}`; initIcons(); }
+  if (nameEl) { nameEl.innerHTML = `${icon(cat.icon, 18)} ${escapeHTML(cat.name)}`; initIcons(); }
 
   renderBlindCards();
 }
@@ -131,7 +137,7 @@ function renderBlindCards() {
     const skipTag = gameState._pendingSkipTags?.[idx];
 
     const wordDisplay = isDone
-      ? `<span class="word-revealed">${activeBlind.word}</span>`
+      ? `<span class="word-revealed">${escapeHTML(activeBlind.word)}</span>`
       : `<span class="word-hidden">${activeBlind.word.split('').map(() => '_').join(' ')}</span>`;
 
     const card = document.createElement('div');
@@ -142,18 +148,17 @@ function renderBlindCards() {
         <span class="blind-type-badge ${escapeHTML(blind.type)}">${
           blind.type === 'small' ? 'Szkic' : blind.type === 'big' ? 'Esej' : 'Traktat'
         }</span>
-        <span class="blind-card__target">Cel: ${Number(blind.targetScore)} pkt</span>
+        <span class="blind-card__target">Cel: ${Number(activeBlind.targetScore)} pkt</span>
       </div>
       <div class="blind-card__word">${wordDisplay}</div>
       <div class="blind-card__definition">${escapeHTML(activeBlind.definition)}</div>
       ${isCurrent ? `
         ${blind.type !== 'boss' ? `
           <div class="skip-form">
-            <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" />
+            <input class="skip-input" type="text" placeholder="Odgadnij i pomiń..." maxlength="20" aria-label="Odgadnij hasło, by pominąć blind" />
             <button class="btn btn--primary btn--sm">Pomiń</button>
           </div>
           ${skipTag ? `<div class="skip-bonus-info">Bonus za pominięcie: <strong>${escapeHTML(skipTag.label)}</strong></div>` : ''}
-          <div class="skip-feedback"></div>
         ` : `<p class="boss-no-skip">Traktat nie może być pominięty</p>`}
         <button class="btn btn--ghost" style="margin-top:.3rem">Zagraj</button>
       ` : ''}
@@ -163,16 +168,13 @@ function renderBlindCards() {
       const input = card.querySelector('.skip-input');
       const skipBtn = card.querySelector('.btn--primary');
       const playBtn = card.querySelector('.btn--ghost');
-      const feedback = card.querySelector('.skip-feedback');
 
       if (skipBtn) {
         skipBtn.addEventListener('click', () => {
-          const attempt = input.value;
-          const ok = trySkipBlind(idx, attempt);
-          if (!ok) {
-            feedback.textContent = 'Niepoprawnie — zaczynamy grę!';
-            feedback.className = 'skip-feedback err';
-          }
+          const ok = trySkipBlind(idx, input.value);
+          // przy błędnym haśle gra startuje natychmiast — feedback toastem,
+          // bo ekran wyboru blinda znika
+          if (!ok) showToast('Niepoprawne hasło — zaczynamy próbę!', 'var(--red)');
         });
       }
 
@@ -198,6 +200,7 @@ export function renderGameScreen() {
   renderHandFigures();
   renderPlayedWords();
   updateWordPreview();
+  renderGuessAvailability();
   bindGuessForm();
 }
 
@@ -212,20 +215,19 @@ function updateGameHeader() {
   // Informacja o próbie
   const total = (gameState.shuffledCategories?.length ?? 0) * 3;
   const done = gameState.completedBlinds?.length ?? 0;
-  const current = done + 1;
+  const current = Math.min(done + 1, total);
   const remaining = Math.max(0, total - current);
-  const catName = escapeHTML(gameState.currentCategory?.name ?? '');
+  const catName = gameState.currentCategory?.name ?? '';
   const blindTypeName = blind?.type === 'small' ? 'Szkic' : blind?.type === 'big' ? 'Esej' : 'Traktat';
   setEl('game-context', `Próba ${current} z ${total} • ${catName} — ${blindTypeName} • pozostało: ${remaining}`);
 
-  setEl('g-definition', escapeHTML(blind?.definition ?? ''));
+  setEl('g-definition', blind?.definition ?? '');
 
-  // Bonus następnej rundy (ze skip/odgadnięcia)
+  // Aktywne bonusy z tagów (mnożnik ×1.5 na ten blind)
   const bonusEl = document.getElementById('next-round-bonus');
   if (bonusEl) {
-    const tags = gameState.pendingTags ?? [];
-    if (tags.length > 0) {
-      bonusEl.textContent = `Bonus następna runda: ${tags.map(t => t.label).join(', ')}`;
+    if (gameState._figureState?.mult15) {
+      bonusEl.textContent = 'Bonus: mnożnik startuje od ×1.5';
       bonusEl.style.display = '';
     } else {
       bonusEl.style.display = 'none';
@@ -269,7 +271,15 @@ export function renderHand() {
     const val = LETTER_VALUES[letter.toUpperCase()] ?? 1;
     tile.innerHTML = `${letter}<span class="letter-tile__val">${val}</span>`;
 
+    tile.setAttribute('role', 'button');
+    tile.setAttribute('tabindex', '0');
+    tile.setAttribute('aria-pressed', String(isSelected));
+    tile.setAttribute('aria-label', `Litera ${letter}, ${val} pkt${isSelected ? ', zaznaczona' : ''}`);
+
     tile.addEventListener('click', () => toggleLetter(idx));
+    tile.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleLetter(idx); }
+    });
     container.appendChild(tile);
   });
 }
@@ -340,14 +350,37 @@ function renderPlayedWords() {
     const tag = document.createElement('span');
     tag.className = 'played-word-tag';
     tag.textContent = word.toUpperCase();
+    const definition = getDefinitionForWord(word);
+    if (definition) {
+      tag.setAttribute('role', 'button');
+      tag.setAttribute('tabindex', '0');
+      tag.title = 'Pokaż definicję';
+      const show = () => showToast(`${word.toUpperCase()}: ${definition}`, 'var(--text)', 4200);
+      tag.addEventListener('click', show);
+      tag.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); }
+      });
+    }
     el.appendChild(tag);
   });
+}
+
+function getDefinitionForWord(word) {
+  const normalized = String(word ?? '').toUpperCase();
+  const category = gameState.currentCategory;
+  if (!category?.words?.some(w => w.toUpperCase() === normalized)) return null;
+  for (const blind of category.blinds ?? []) {
+    const found = blind.pool?.find(item => item.word.toUpperCase() === normalized);
+    if (found?.definition) return found.definition;
+  }
+  return null;
 }
 
 function updateWordPreview() {
   const preview = document.getElementById('word-preview');
   const tierBadge = document.getElementById('word-tier-badge');
   const scoreEl = document.getElementById('word-score-preview');
+  const clearBtn = document.getElementById('btn-clear-selection');
   if (!preview) return;
 
   preview.innerHTML = '';
@@ -355,7 +388,13 @@ function updateWordPreview() {
   if (gameState.selectedIndices.length === 0) {
     if (tierBadge) tierBadge.textContent = '';
     if (scoreEl) { scoreEl.textContent = ''; scoreEl.style.display = 'none'; }
+    if (clearBtn) clearBtn.style.display = 'none';
     return;
+  }
+
+  if (clearBtn) {
+    clearBtn.style.display = 'inline-flex';
+    clearBtn.onclick = () => clearSelection();
   }
 
   const letters = gameState.selectedIndices.map(i => gameState.hand[i]);
@@ -366,40 +405,33 @@ function updateWordPreview() {
     preview.appendChild(tile);
   });
 
-  // Wykryj sekwencje słów (greedy)
+  // Wykryj sekwencje słów (greedy) — ta sama logika co przy zagraniu
   const segments = findWordSequence(letters);
   const wordSegs = segments.filter(s => s.word);
+  const extraSegs = segments.filter(s => !s.word);
 
-  if (wordSegs.length === 0) {
-    if (tierBadge) { tierBadge.textContent = letters.length.toString(); tierBadge.style.color = 'var(--text-muted)'; }
-    if (scoreEl) { scoreEl.textContent = ''; scoreEl.style.display = 'none'; }
-  } else if (wordSegs.length === 1) {
-    const len = wordSegs[0].word.length;
-    const tier = getTier(len);
-    if (tierBadge) { tierBadge.textContent = len.toString(); tierBadge.style.color = tier.color; }
-  } else {
-    const label = wordSegs.map(s => s.word.length).join('+');
-    const totalLen = wordSegs.reduce((a, s) => a + s.word.length, 0);
-    const tier = getTier(totalLen);
-    if (tierBadge) { tierBadge.textContent = label; tierBadge.style.color = tier.color; }
+  if (tierBadge) {
+    if (wordSegs.length === 0) {
+      tierBadge.textContent = letters.length.toString();
+      tierBadge.style.color = 'var(--text-muted)';
+    } else {
+      const label = wordSegs.map(s => s.word.length).join('+');
+      const totalLen = wordSegs.reduce((a, s) => a + s.word.length, 0);
+      tierBadge.textContent = label;
+      tierBadge.style.color = getTier(totalLen).color;
+    }
   }
 
-  // Podgląd wyniku — oblicz dla znalezionych słów
-  if (wordSegs.length > 0 && scoreEl) {
-    let totalScore = 0;
-    const catId = gameState.currentCategory?.id;
-    const catWords = gameState.currentCategory?.words ?? [];
-    const figs = gameState.activeFigures ?? [];
-    const figState = gameState._figureState ?? {};
-    wordSegs.forEach(seg => {
-      const r = scoreWord(seg.word, catId, catWords, figs, figState);
-      totalScore += r.score;
-    });
-    scoreEl.textContent = `+${totalScore}`;
-    scoreEl.style.display = '';
-  } else if (scoreEl) {
-    scoreEl.textContent = '';
-    scoreEl.style.display = 'none';
+  // Podgląd wyniku — dokładnie ten sam scoring co faktyczne zagranie
+  if (scoreEl) {
+    const result = scorePlaySegments(wordSegs, extraSegs, buildScoringContext());
+    if (result.score > 0) {
+      scoreEl.textContent = `+${result.score}`;
+      scoreEl.style.display = '';
+    } else {
+      scoreEl.textContent = '';
+      scoreEl.style.display = 'none';
+    }
   }
 }
 
@@ -416,6 +448,7 @@ function bindGuessForm() {
   const confirmBtn = document.getElementById('btn-guess');
 
   function openForm() {
+    if (gameState.guessAttemptedThisBlind) return;
     if (input) input.value = '';
     if (form) form.style.display = 'flex';
     if (toggleBtn) toggleBtn.style.display = 'none';
@@ -436,10 +469,11 @@ function bindGuessForm() {
       setTimeout(() => {
         input.classList.remove('shake');
         closeForm();
+        renderGuessAvailability();
       }, 400);
     }
-    // On correct guess, game.js will transition phase away from 'game',
-    // closeForm will be called on next render via resetGuessForm
+    // Przy trafnym haśle game.js zmienia fazę, a resetGuessForm
+    // zamknie formularz przy następnym renderze
   }
 
   if (toggleBtn) toggleBtn.addEventListener('click', openForm);
@@ -450,33 +484,81 @@ function bindGuessForm() {
   });
 }
 
+function renderGuessAvailability() {
+  const toggleBtn = document.getElementById('btn-guess-toggle');
+  const form = document.getElementById('guess-form');
+  if (!toggleBtn) return;
+
+  if (gameState.guessAttemptedThisBlind) {
+    toggleBtn.style.display = 'none';
+    if (form) form.style.display = 'none';
+    let msg = document.getElementById('guess-locked-message');
+    if (!msg) {
+      msg = document.createElement('p');
+      msg.id = 'guess-locked-message';
+      msg.className = 'guess-locked-message';
+      toggleBtn.insertAdjacentElement('afterend', msg);
+    }
+    msg.textContent = 'Próba zgadywania wykorzystana w tym blindzie.';
+  } else {
+    const msg = document.getElementById('guess-locked-message');
+    if (msg) msg.remove();
+    if (form?.style.display !== 'flex') toggleBtn.style.display = '';
+  }
+}
+
 export function resetGuessForm() {
   const form = document.getElementById('guess-form');
   const toggleBtn = document.getElementById('btn-guess-toggle');
   const input = document.getElementById('guess-input');
   if (form) form.style.display = 'none';
-  if (toggleBtn) toggleBtn.style.display = '';
+  if (toggleBtn) toggleBtn.style.display = gameState.guessAttemptedThisBlind ? 'none' : '';
   if (input) input.value = '';
+  const msg = document.getElementById('guess-locked-message');
+  if (msg) msg.remove();
 }
 
-// ---- Score popup — usunięty, wynik widoczny inline w podglądzie słowa ---
+// ---- Feedback po zagraniu ------------------------------------------
 
-export function showScorePopup() { /* wynik widoczny inline */ }
+export function showScorePopup({ word, result }) {
+  const existing = document.querySelector('.score-combo');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.className = `score-combo ${result.score >= 250 ? 'score-combo--huge' : result.score >= 100 ? 'score-combo--big' : ''}`;
+  popup.setAttribute('role', 'status');
+
+  const multLabel = Number.isInteger(result.mult) ? result.mult : result.mult.toFixed(1);
+  const extra = result.extraChips > 0 ? ` (+${result.extraChips})` : '';
+  const label = result.lettersOnly ? 'Litery' : word.toUpperCase();
+  popup.innerHTML = `
+    <div class="score-combo__word">${escapeHTML(label)}</div>
+    <div class="score-combo__row">
+      <span class="score-combo__part" data-step="chips">${result.lettersOnly ? result.extraChips : result.chips} żetonów</span>
+      <span class="score-combo__part" data-step="mult">× ${multLabel}${extra}</span>
+      <span class="score-combo__part score-combo__total" data-step="total">+${result.score}</span>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const parts = [...popup.querySelectorAll('.score-combo__part')];
+  if (reduced) {
+    parts.forEach(part => part.classList.add('visible'));
+  } else {
+    parts.forEach((part, idx) => setTimeout(() => part.classList.add('visible'), idx * 120));
+  }
+  setTimeout(() => popup.remove(), reduced ? 1300 : 2200);
+}
 
 export function showWordRejected(data) {
   const hand = document.getElementById('hand');
-  if (!hand) return;
-  hand.classList.add('invalid');
-  setTimeout(() => hand.classList.remove('invalid'), 350);
-
-  // Toast zamiast popupu
+  if (hand) {
+    hand.classList.add('invalid');
+    setTimeout(() => hand.classList.remove('invalid'), 350);
+  }
   const msg = data.bezblednik ? '(Bezbłędnik) Nieznane słowo' : 'Nieznane słowo';
-  const toast = document.createElement('div');
-  toast.className = 'tag-toast';
-  toast.style.color = 'var(--red)';
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 1200);
+  showToast(msg, 'var(--red)', 1200);
 }
 
 // ---- Ekran podsumowania --------------------------------------------
@@ -496,15 +578,10 @@ export function renderSummaryScreen({ won, inkReward, score }) {
 
   const btn = document.getElementById('btn-summary-continue');
   if (btn) {
-    if (!won) {
-      btn.textContent = 'Koniec gry';
-    } else {
-      const cat = gameState.shuffledCategories[gameState.categoryIndex];
-      const isLastBlind =
-        gameState.categoryIndex === gameState.shuffledCategories.length - 1 &&
-        gameState.blindIndex === cat?.blinds.length - 1;
-      btn.textContent = isLastBlind ? 'Zakończ grę →' : 'Skryptorium →';
-    }
+    if (!won) btn.textContent = 'Koniec gry';
+    else if (allCategoriesCompleted()) btn.textContent = 'Zakończ grę →';
+    else if (gameState._wonByGuess) btn.textContent = 'Dalej →';
+    else btn.textContent = 'Skryptorium →';
   }
 }
 
@@ -517,15 +594,23 @@ export function renderEndScreen({ victory }) {
   setEl('end-subtitle', victory
     ? 'Ukończyłeś wszystkie kategorie!'
     : 'Nie udało się osiągnąć progu punktowego.');
+  setEl('end-difficulty', `Poziom: ${DIFFICULTIES[gameState.difficulty]?.label ?? 'Akademicki'}`);
+  const shareBtn = document.getElementById('btn-share-daily');
+  if (shareBtn) shareBtn.style.display = gameState.mode === 'daily' ? '' : 'none';
 
   setEl('end-total-score', gameState.totalScore.toLocaleString('pl'));
   setEl('end-highscore', gameState.highScore.toLocaleString('pl'));
-  setEl('end-words-count', gameState.wordsPlayedThisRun.length);
+  const stats = buildRunStats();
+  setEl('end-words-count', stats.wordsCount);
+  setEl('end-best-play', stats.bestPlay.toLocaleString('pl'));
+  setEl('end-longest-word', stats.longestWord ? stats.longestWord.toUpperCase() : '—');
+  setEl('end-category-words', stats.categoryWords);
+  setEl('end-common-letter', stats.commonLetter || '—');
 
   const wordsEl = document.getElementById('end-words-list');
   if (wordsEl) {
     wordsEl.innerHTML = '';
-    const shown = gameState.wordsPlayedThisRun.slice(-30);
+    const shown = flattenRunWords().slice(-30);
     shown.forEach(w => {
       const tag = document.createElement('span');
       tag.className = 'end-word-tag' + (w.categoryBonus ? ' cat' : '');
@@ -535,17 +620,59 @@ export function renderEndScreen({ victory }) {
   }
 }
 
+function flattenRunWords() {
+  const out = [];
+  for (const play of gameState.wordsPlayedThisRun ?? []) {
+    if (Array.isArray(play.words)) {
+      for (const word of play.words) {
+        out.push({
+          word,
+          categoryBonus: play.categoryMatches?.some(w => w.toLowerCase() === word.toLowerCase()) ?? false,
+        });
+      }
+    } else if (play.word) {
+      out.push({ word: play.word, categoryBonus: !!play.categoryBonus });
+    }
+  }
+  return out;
+}
+
+function buildRunStats() {
+  const plays = gameState.wordsPlayedThisRun ?? [];
+  const words = flattenRunWords();
+  const bestPlay = plays.reduce((best, play) => Math.max(best, play.score ?? 0), 0);
+  const longestWord = words.reduce((best, item) => (
+    item.word.length > best.length ? item.word : best
+  ), '');
+  const categoryWords = words.filter(item => item.categoryBonus).length;
+  const counts = new Map();
+  for (const play of plays) {
+    const letters = Array.isArray(play.letters)
+      ? play.letters
+      : String(play.word ?? '').toUpperCase().split('');
+    for (const letter of letters) {
+      const upper = String(letter).toUpperCase();
+      counts.set(upper, (counts.get(upper) ?? 0) + 1);
+    }
+  }
+  let commonLetter = '';
+  let commonCount = 0;
+  for (const [letter, count] of counts) {
+    if (count > commonCount || (count === commonCount && letter.localeCompare(commonLetter, 'pl') < 0)) {
+      commonLetter = letter;
+      commonCount = count;
+    }
+  }
+  return { wordsCount: words.length, bestPlay, longestWord, categoryWords, commonLetter };
+}
+
 // ---- Tag toast -----------------------------------------------------
 
 export function showTagToast(tag) {
-  const toast = document.createElement('div');
-  toast.className = 'tag-toast';
-  toast.textContent = `Bonus: ${tag.label}`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2200);
+  showToast(`Bonus: ${tag.label}`, 'var(--gold)', 2200);
 }
 
-// ---- Ekran gry: update inkrujementalny -----------------------------
+// ---- Ekran gry: update po akcji ------------------------------------
 
 export function updateGameAfterPlay() {
   updateGameHeader();
@@ -556,6 +683,7 @@ export function updateGameAfterPlay() {
   renderHandFigures();
   renderPlayedWords();
   updateWordPreview();
+  renderGuessAvailability();
 }
 
 // ---- Helpers -------------------------------------------------------
@@ -591,14 +719,11 @@ export function buildFigureCardEl(fig, cost, showSell = false) {
   return card;
 }
 
-// ---- Event listeners na ekranie blind-select back ------------------
+// ---- Powrót z wyboru blinda na mapę --------------------------------
+
 export function bindBlindSelectEvents() {
   const backBtn = document.getElementById('blind-back-btn');
   if (backBtn) {
-    backBtn.onclick = () => {
-      if (gameState.phase === 'blind-select') {
-        showScreen('screen-map');
-      }
-    };
+    backBtn.onclick = () => returnToMap();
   }
 }

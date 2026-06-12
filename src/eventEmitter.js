@@ -27,15 +27,23 @@ class EventEmitter {
 
   emit(event, data) {
     const listeners = this._listeners[event];
-    if (!listeners) return this;
-
-    const toRemove = [];
-    for (const l of listeners) {
-      l.handler(data);
-      if (l.once) toRemove.push(l);
+    if (listeners) {
+      const toRemove = [];
+      for (const l of listeners) {
+        l.handler(data);
+        if (l.once) toRemove.push(l);
+      }
+      if (toRemove.length) {
+        this._listeners[event] = listeners.filter(l => !toRemove.includes(l));
+      }
     }
-    if (toRemove.length) {
-      this._listeners[event] = listeners.filter(l => !toRemove.includes(l));
+
+    // Wildcard: nasłuch wszystkich zdarzeń (np. auto-zapis stanu gry)
+    if (event !== '*') {
+      const wildcards = this._listeners['*'];
+      if (wildcards) {
+        for (const l of wildcards) l.handler({ event, data });
+      }
     }
     return this;
   }

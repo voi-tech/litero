@@ -2,6 +2,77 @@
    Litero — dark theme, Balatro-inspired
    ============================================= */
 
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/inter-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/inter-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/outfit-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/outfit-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/outfit-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/outfit-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/outfit-900.woff2') format('woff2');
+}
+
 /* --- CSS Variables --- */
 :root {
   --bg:         #09090b;
@@ -73,6 +144,16 @@ details summary { cursor: pointer; user-select: none; }
   touch-action: manipulation;
 }
 .btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+/* Widoczny focus dla nawigacji klawiaturą */
+.btn:focus-visible,
+.letter-tile:focus-visible,
+.category-card:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .btn--primary {
   background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
   color: #fff;
@@ -95,6 +176,20 @@ details summary { cursor: pointer; user-select: none; }
 .btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
 .btn--sm { padding: .3rem .7rem; font-size: .82rem; }
 .btn--large { padding: .75rem 2rem; font-size: 1.1rem; }
+
+.selection-clear-btn {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.selection-clear-btn:hover { border-color: var(--red); color: var(--red); }
 
 /* --- Ink display --- */
 .ink-display {
@@ -149,6 +244,60 @@ details summary { cursor: pointer; user-select: none; }
 }
 .start-highscore .label { color: var(--text-muted); }
 .start-highscore .value { color: var(--gold); font-weight: 700; font-size: 1.4rem; }
+
+.difficulty-picker {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .55rem;
+}
+.difficulty-option {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .65rem .7rem;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  text-align: left;
+}
+.difficulty-option span { font-weight: 800; }
+.difficulty-option small { color: var(--text-muted); font-size: .72rem; line-height: 1.25; }
+.difficulty-option.active {
+  border-color: var(--accent);
+  background: rgba(167, 139, 250, .12);
+}
+.difficulty-option.active small { color: var(--text); }
+
+.save-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, .72);
+}
+.save-modal__panel {
+  width: min(100%, 380px);
+  background: #111116;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.save-modal__panel h2 { font-size: 1.15rem; }
+.save-modal__panel p { color: var(--text-muted); line-height: 1.45; }
+.save-modal__actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
 
 /* Jak grać */
 .how-to-play {
@@ -231,7 +380,6 @@ details summary { cursor: pointer; user-select: none; }
   box-shadow: 0 10px 25px rgba(96, 165, 250, 0.15);
 }
 .category-card.completed { border-color: var(--green); opacity: .65; cursor: default; }
-.category-card.locked { opacity: .35; cursor: not-allowed; }
 
 .category-card__icon { font-size: 1.8rem; line-height: 1; }
 .category-card__name { font-weight: 700; font-size: .95rem; }
@@ -627,6 +775,13 @@ details summary { cursor: pointer; user-select: none; }
 }
 .scr-layout section { display: flex; flex-direction: column; gap: .5rem; }
 .scr-layout h3 { font-size: .95rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.scr-interest {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: .85rem;
+  text-align: center;
+}
+#btn-scr-reroll { align-self: center; margin-top: .25rem; }
 
 .figure-grid {
   display: flex;
@@ -805,6 +960,12 @@ details summary { cursor: pointer; user-select: none; }
 }
 #guess-input:focus { border-color: var(--accent); }
 #guess-input.shake { animation: shake .35s ease; border-color: var(--red); }
+.guess-locked-message {
+  color: var(--red);
+  font-size: .82rem;
+  text-align: center;
+  margin-top: .35rem;
+}
 
 /* =============================================
    AKTYWNE FIGURY I BONUSY NA EKRANIE GRY
@@ -880,6 +1041,64 @@ details summary { cursor: pointer; user-select: none; }
   color: var(--gold);
   z-index: 50;
   animation: toastIn .3s ease forwards;
+}
+
+.score-combo {
+  position: fixed;
+  left: 50%;
+  top: 5.2rem;
+  z-index: 45;
+  transform: translateX(-50%);
+  min-width: min(92vw, 360px);
+  background: rgba(17, 17, 22, .96);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: .85rem 1rem;
+  text-align: center;
+  pointer-events: none;
+}
+.score-combo--big { border-color: var(--gold); }
+.score-combo--huge {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px rgba(163, 230, 53, .25), 0 12px 36px rgba(163, 230, 53, .18);
+}
+.score-combo__word {
+  font-weight: 900;
+  letter-spacing: .08em;
+  color: var(--text);
+  margin-bottom: .45rem;
+}
+.score-combo__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
+.score-combo__part {
+  opacity: 0;
+  transform: translateY(.35rem) scale(.94);
+  transition: opacity .16s ease, transform .16s ease;
+  color: var(--text-muted);
+  font-weight: 800;
+}
+.score-combo__part.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.score-combo__total {
+  color: var(--green);
+  font-size: 1.35rem;
+}
+.score-combo--big .score-combo__total { font-size: 1.55rem; color: var(--gold); }
+.score-combo--huge .score-combo__total { font-size: 1.8rem; color: var(--green); }
+
+@media (prefers-reduced-motion: reduce) {
+  .score-combo__part {
+    transition: none;
+    transform: none;
+  }
 }
 @keyframes toastIn {
   from { opacity: 0; transform: translateX(-50%) translateY(20px); }

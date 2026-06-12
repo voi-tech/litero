@@ -1,36 +1,35 @@
 // src/scriptorium.js — ekran Skryptorium (sklep z figurami i bonusy pasywne)
 
 import { emitter } from './eventEmitter.js';
-import { gameState, addFigure, removeFigure, closeScriptorium, pickPassiveBonus } from './game.js';
-import { FIGURES, getFigureCost, getFigureSellValue } from './figures.js';
+import {
+  gameState, addFigure, removeFigure, closeScriptorium, pickPassiveBonus,
+  MAX_PASSIVE_FIGURES, MAX_ONESHOT_FIGURES, randomFloat,
+} from './game.js';
+import { FIGURES, getFigureCost, getFigureSellValue, getRandomFigures } from './figures.js';
 import { PASSIVE_BONUSES, getRandomPassiveBonus } from './passiveBonuses.js';
-import { buildFigureCardEl, showScreen } from './ui.js';
+import { buildFigureCardEl, showScreen, showToast } from './ui.js';
 import { icon, initIcons } from './icons.js';
 
-let shopOffer = []; // 3 figury retoryczne do kupienia
-
 export function openScriptorium() {
-  // Generuj ofertę: 3 figury których gracz nie posiada
-  const owned = new Set([...gameState.activeFigures, ...gameState.handFigures]);
-  const available = Object.values(FIGURES).filter(f => !owned.has(f.id));
-  shopOffer = pickRandom(available, 3);
-
-  // Bonus pasywny: auto-przydziel po pokonaniu bossa
-  if (gameState.hasDefeatedBoss && !gameState.passiveBonusTaken) {
-    const bonus = getRandomPassiveBonus(gameState.passiveBonuses);
-    if (bonus) {
-      pickPassiveBonus(bonus.id);
-      showToast(`Bonus pasywny: ${bonus.name}!`, 'var(--green)');
-    }
+  const blindKey = `${gameState.currentCategory?.id ?? 'none'}:${gameState.currentBlind?.id ?? 'none'}:${gameState.completedBlinds.length}`;
+  if (gameState._scriptoriumBlindKey !== blindKey) {
+    gameState._scriptoriumBlindKey = blindKey;
+    gameState.lastInterestReward = Math.floor(gameState.ink / 5);
+    gameState.ink += gameState.lastInterestReward;
+    rollScriptoriumOffer();
   }
 
+  // Bonus pasywny: jeden za każdego pokonanego bossa
+  while (gameState.passiveBonuses.length < gameState.bossesDefeated) {
+    const bonus = getRandomPassiveBonus(gameState.passiveBonuses, randomFloat);
+    if (!bonus) break;
+    pickPassiveBonus(bonus.id);
+    showToast(`Bonus pasywny: ${bonus.name}!`, 'var(--green)', 2000);
+  }
+
+  gameState.phase = 'scriptorium';
   renderSkryptorium();
   showScreen('screen-scriptorium');
-}
-
-function pickRandom(arr, count) {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
 }
 
 export function renderSkryptorium() {
@@ -39,12 +38,11 @@ export function renderSkryptorium() {
   renderOwnedFigures();
 }
 
-// Backwards compat alias
-export const renderScriptorium = renderSkryptorium;
-
 function renderInk() {
   const el = document.getElementById('scr-ink-value');
   if (el) el.textContent = gameState.ink;
+  const interest = document.getElementById('scr-interest-value');
+  if (interest) interest.textContent = `Odsetki: +${gameState.lastInterestReward ?? 0}`;
 }
 
 function renderShop() {
@@ -52,7 +50,7 @@ function renderShop() {
   if (!grid) return;
   grid.innerHTML = '';
 
-  if (shopOffer.length === 0) {
+  if (gameState.scriptoriumOffer.length === 0) {
     const empty = document.createElement('p');
     empty.style.cssText = 'color:var(--text-muted);font-size:.85rem;';
     empty.textContent = 'Brak figur do kupienia.';
@@ -60,13 +58,13 @@ function renderShop() {
     return;
   }
 
-  shopOffer.forEach(fig => {
+  gameState.scriptoriumOffer.forEach(fig => {
     const cost = getFigureCost(fig.id, gameState.activeFigures);
     const card = buildFigureCardEl(fig, cost, false);
 
     const canAfford = gameState.ink >= cost;
-    const passiveFull = fig.type === 'passive' && gameState.activeFigures.length >= 5;
-    const oneshotFull = fig.type !== 'passive' && gameState.handFigures.length >= 3;
+    const passiveFull = fig.type === 'passive' && gameState.activeFigures.length >= MAX_PASSIVE_FIGURES;
+    const oneshotFull = fig.type !== 'passive' && gameState.handFigures.length >= MAX_ONESHOT_FIGURES;
     const alreadyOwns = gameState.activeFigures.includes(fig.id) || gameState.handFigures.includes(fig.id);
 
     if (!canAfford || passiveFull || oneshotFull || alreadyOwns) {
@@ -80,6 +78,23 @@ function renderShop() {
 
     grid.appendChild(card);
   });
+}
+
+function rollScriptoriumOffer() {
+  const owned = [...gameState.activeFigures, ...gameState.handFigures];
+  gameState.scriptoriumOffer = getRandomFigures(3, owned, randomFloat);
+}
+
+export function rerollScriptoriumOffer() {
+  if (gameState.ink < 2) {
+    showToast('Reroll kosztuje 2 atramentu', 'var(--red)');
+    return false;
+  }
+  gameState.ink -= 2;
+  rollScriptoriumOffer();
+  emitter.emit('scriptoriumRerolled', { state: gameState });
+  renderSkryptorium();
+  return true;
 }
 
 
@@ -155,13 +170,10 @@ function renderOwnedFigures() {
 function buyFigure(figureId, cost) {
   if (gameState.ink < cost) return;
 
-  const fig = FIGURES[figureId];
-  if (!fig) return;
-
-  if (fig.type === 'passive' && gameState.activeFigures.length >= 5) return;
-
+  // addFigure pilnuje limitów (5 pasywnych / 3 jednorazowe) i duplikatów —
+  // atrament schodzi dopiero po udanym dodaniu
+  if (!addFigure(figureId)) return;
   gameState.ink -= cost;
-  addFigure(figureId);
   emitter.emit('figureBought', { figureId, state: gameState });
 
   renderSkryptorium();
@@ -194,13 +206,8 @@ export function bindScriptoriumEvents() {
   if (closeBtn) {
     closeBtn.onclick = () => closeScriptorium();
   }
-}
-
-function showToast(message, color = 'var(--gold)') {
-  const toast = document.createElement('div');
-  toast.className = 'tag-toast';
-  toast.style.color = color;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2000);
+  const rerollBtn = document.getElementById('btn-scr-reroll');
+  if (rerollBtn) {
+    rerollBtn.onclick = () => rerollScriptoriumOffer();
+  }
 }
