@@ -1,7 +1,7 @@
 {
   "name": "litero",
-  "version": "1.0.0",
-  "description": "Przeglądarkowa gra słowna z figurami retorycznymi",
+  "version": "3.0.0",
+  "description": "Edukacyjna polska gra słowna o odkrywaniu znaczeń",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,9 @@
     "build:dict": "node scripts/build-dictionary.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.60.0",
-    "vite": "^5.4.0",
-    "vitest": "^2.1.9"
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   }
 }

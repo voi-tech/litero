@@ -1,4 +1,5 @@
-const CACHE_NAME = 'litero-cache-v1';
+const BUILD_VERSION = '3.0.0';
+const CACHE_NAME = `litero-redakcja-${BUILD_VERSION}`;
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -39,14 +40,15 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      });
-    })
-  );
+  if (request.mode === 'navigate') {
+    event.respondWith(fetch(request).catch(() => caches.match('/index.html')));
+    return;
+  }
+
+  event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
+    if (!response.ok) return response;
+    const copy = response.clone();
+    event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy)));
+    return response;
+  })));
 });

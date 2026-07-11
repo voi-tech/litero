@@ -1,12 +1,12 @@
 {
-  "name": "Litero",
+  "name": "Litero — Redakcja słów",
   "short_name": "Litero",
-  "description": "Polska gra słowna inspirowana Balatro.",
+  "description": "Edukacyjna polska gra o układaniu słów, odkrywaniu haseł i poznawaniu ich znaczeń.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#a78bfa",
+  "background_color": "#e9e1d0",
+  "theme_color": "#e9e1d0",
   "icons": [
     {
       "src": "/favicon.svg",

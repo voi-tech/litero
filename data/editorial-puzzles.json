@@ -1,0 +1,98 @@
+[
+  {
+    "id": "nauka-atom", "word": "ATOM", "category": "Nauka",
+    "definitions": { "simple": "Bardzo mała część, z której zbudowana jest materia.", "full": "Najmniejszy składnik pierwiastka chemicznego zachowujący jego właściwości." },
+    "example": "Każda kropla wody składa się z ogromnej liczby atomów.", "synonyms": ["drobina"],
+    "curiosity": "W atomie jest tak dużo pustej przestrzeni, że jego jądro zajmuje tylko maleńką część objętości.",
+    "knowledgeQuestion": { "prompt": "Co budują atomy?", "options": ["Materię", "Wyłącznie światło", "Tylko rośliny"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 2, "readingLevel": 1 }
+  },
+  {
+    "id": "przyroda-rzeka", "word": "RZEKA", "category": "Przyroda",
+    "definitions": { "simple": "Duży naturalny strumień wody płynący w swoim korycie.", "full": "Naturalny ciek wodny płynący wyżłobionym korytem od źródła do ujścia." },
+    "example": "Wisła jest najdłuższą rzeką w Polsce.", "synonyms": ["ciek"],
+    "curiosity": "Rzeka może uchodzić do morza, jeziora albo innej rzeki.",
+    "knowledgeQuestion": { "prompt": "Jak nazywa się początek rzeki?", "options": ["Źródło", "Brzeg", "Ujście"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 1, "readingLevel": 1 }
+  },
+  {
+    "id": "kosmos-planeta", "word": "PLANETA", "category": "Kosmos",
+    "definitions": { "simple": "Duże ciało w kosmosie krążące wokół gwiazdy.", "full": "Ciało niebieskie krążące wokół gwiazdy, mające kształt zbliżony do kulistego." },
+    "example": "Ziemia jest planetą krążącą wokół Słońca.", "synonyms": ["glob"],
+    "curiosity": "W Układzie Słonecznym znajduje się osiem planet.",
+    "knowledgeQuestion": { "prompt": "Wokół czego krąży Ziemia?", "options": ["Słońca", "Księżyca", "Marsa"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 1, "readingLevel": 1 }
+  },
+  {
+    "id": "kultura-teatr", "word": "TEATR", "category": "Kultura",
+    "definitions": { "simple": "Miejsce, gdzie aktorzy przedstawiają historie przed publicznością.", "full": "Dziedzina sztuki widowiskowej oraz budynek przeznaczony do wystawiania przedstawień." },
+    "example": "Klasa obejrzała w teatrze przedstawienie o przyjaźni.", "synonyms": ["scena"],
+    "curiosity": "Starożytne teatry budowano tak, aby głos aktora docierał bez mikrofonu do wielu widzów.",
+    "knowledgeQuestion": { "prompt": "Kto występuje na scenie?", "options": ["Aktor", "Astronom", "Ogrodnik"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 1, "readingLevel": 1 }
+  },
+  {
+    "id": "muzyka-rytm", "word": "RYTM", "category": "Muzyka",
+    "definitions": { "simple": "Regularne powtarzanie dźwięków albo ruchów.", "full": "Uporządkowanie dźwięków w czasie poprzez powtarzanie akcentów i wartości." },
+    "example": "Perkusja wyznacza rytm piosenki.", "synonyms": ["takt"],
+    "curiosity": "Rytm można usłyszeć w muzyce, ale także dostrzec w poezji i tańcu.",
+    "knowledgeQuestion": { "prompt": "Co może wyznaczać rytm utworu?", "options": ["Perkusja", "Obraz", "Mapa"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 2, "readingLevel": 1 }
+  },
+  {
+    "id": "wartosci-odwaga", "word": "ODWAGA", "category": "Wartości",
+    "definitions": { "simple": "Siła, która pomaga działać mimo strachu.", "full": "Zdolność do podjęcia działania pomimo świadomości niebezpieczeństwa lub trudności." },
+    "example": "Potrzeba odwagi, żeby przyznać się do błędu.", "synonyms": ["męstwo"],
+    "curiosity": "Odwaga nie oznacza braku strachu — oznacza działanie pomimo niego.",
+    "knowledgeQuestion": { "prompt": "Czy odważna osoba może się bać?", "options": ["Tak", "Nie", "Tylko w nocy"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 2, "readingLevel": 1 }
+  },
+  {
+    "id": "jezyk-metafora", "word": "METAFORA", "category": "Język",
+    "definitions": { "simple": "Wyrażenie, które opisuje coś nie wprost, lecz przez obrazowe porównanie.", "full": "Środek stylistyczny przenoszący znaczenie jednego pojęcia na inne na podstawie skojarzenia." },
+    "example": "Zdanie „morze świateł” jest metaforą wielkiej liczby świateł.", "synonyms": ["przenośnia"],
+    "curiosity": "Metafor używamy nie tylko w poezji, ale również w codziennej rozmowie.",
+    "knowledgeQuestion": { "prompt": "Jak inaczej nazywa się metaforę?", "options": ["Przenośnia", "Rym", "Przecinek"], "correctIndex": 0 },
+    "difficulty": { "commonness": 2, "abstraction": 3, "readingLevel": 2 }
+  },
+  {
+    "id": "historia-kronika", "word": "KRONIKA", "category": "Historia",
+    "definitions": { "simple": "Zapis wydarzeń ułożonych w kolejności, w której się zdarzyły.", "full": "Utwór dziejopisarski przedstawiający zdarzenia chronologicznie." },
+    "example": "Kronika szkoły opisuje najważniejsze wydarzenia z wielu lat.", "synonyms": ["rocznik"],
+    "curiosity": "Dawne kroniki często łączyły fakty z legendami i opowieściami autora.",
+    "knowledgeQuestion": { "prompt": "W jakim porządku kronika opisuje wydarzenia?", "options": ["Chronologicznym", "Losowym", "Alfabetycznym"], "correctIndex": 0 },
+    "difficulty": { "commonness": 2, "abstraction": 2, "readingLevel": 2 }
+  },
+  {
+    "id": "geografia-wyspa", "word": "WYSPA", "category": "Geografia",
+    "definitions": { "simple": "Fragment lądu otoczony ze wszystkich stron wodą.", "full": "Obszar lądowy mniejszy od kontynentu, otoczony ze wszystkich stron wodą." },
+    "example": "Islandia jest wyspą na Oceanie Atlantyckim.", "synonyms": ["ląd"],
+    "curiosity": "Największą wyspą świata jest Grenlandia.",
+    "knowledgeQuestion": { "prompt": "Co otacza wyspę?", "options": ["Woda", "Góry", "Droga"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 1, "readingLevel": 1 }
+  },
+  {
+    "id": "technika-kompas", "word": "KOMPAS", "category": "Technika",
+    "definitions": { "simple": "Przyrząd, który pomaga odnaleźć kierunki świata.", "full": "Przyrząd nawigacyjny wykorzystujący pole magnetyczne do wskazywania kierunku północnego." },
+    "example": "Turysta sprawdził kompas, aby odnaleźć północ.", "synonyms": ["busola"],
+    "curiosity": "Igła kompasu ustawia się zgodnie z polem magnetycznym Ziemi.",
+    "knowledgeQuestion": { "prompt": "Który kierunek wskazuje igła kompasu?", "options": ["Północ", "Dół", "Środek"], "correctIndex": 0 },
+    "difficulty": { "commonness": 1, "abstraction": 1, "readingLevel": 1 }
+  },
+  {
+    "id": "przyroda-przyroda", "word": "PRZYRODA", "category": "Przyroda",
+    "definitions": { "simple": "Rośliny, zwierzęta, krajobrazy i wszystkie naturalne zjawiska wokół nas.", "full": "Ogół świata ożywionego i nieożywionego, który nie został wytworzony przez człowieka." },
+    "example": "Podczas wycieczki uczniowie obserwowali przyrodę parku narodowego.", "synonyms": ["natura"],
+    "curiosity": "Do przyrody należą zarówno żywe organizmy, jak i skały, woda czy powietrze.",
+    "knowledgeQuestion": { "prompt": "Co należy do przyrody?", "options": ["Organizmy i ich otoczenie", "Tylko budynki", "Wyłącznie maszyny"], "correctIndex": 0 },
+    "difficulty": { "commonness": 2, "abstraction": 2, "readingLevel": 2 }
+  },
+  {
+    "id": "spoleczenstwo-rodzina", "word": "RODZINA", "category": "Społeczeństwo",
+    "definitions": { "simple": "Grupa bliskich osób połączonych pokrewieństwem, opieką lub wspólnym życiem.", "full": "Podstawowa grupa społeczna tworzona przez osoby związane pokrewieństwem, powinowactwem, adopcją lub opieką." },
+    "example": "Rodzina wspólnie przygotowała niedzielny obiad.", "synonyms": ["bliscy"],
+    "curiosity": "Rodziny mogą wyglądać bardzo różnie, a ich ważną cechą jest wzajemna troska.",
+    "knowledgeQuestion": { "prompt": "Co pomaga budować rodzinne relacje?", "options": ["Wzajemna troska", "Rywalizacja", "Milczenie"], "correctIndex": 0 },
+    "difficulty": { "commonness": 2, "abstraction": 2, "readingLevel": 2 }
+  }
+]
