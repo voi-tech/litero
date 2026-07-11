@@ -10,15 +10,20 @@ test('samouczek prowadzi przez słowo, wskazówkę, hasło i kartę wiedzy', asy
 
   await expect(page.getByRole('heading', { name: /Redakcja słów/i })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Samouczek' }).click();
-  await expect(page.getByRole('heading', { name: 'Próba redakcyjna' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Próba' })).toBeVisible();
+  const handBefore = await page.evaluate(() => [...window.__litero.round.hand]);
 
-  for (const letter of ['K', 'O', 'T']) {
+  for (const letter of ['R', 'Z', 'E', 'K', 'A']) {
     await page.getByRole('button', { name: `Litera ${letter}`, exact: true }).click();
   }
-  await page.getByRole('button', { name: 'Złóż słowo' }).click();
-  await expect(page.getByRole('heading', { name: 'Wybierz wskazówkę' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zatwierdź słowo' }).click();
+  await expect(page.getByRole('heading', { name: 'Wybierz podpowiedź' })).toBeVisible();
+  const handAfter = await page.evaluate(() => [...window.__litero.round.hand]);
+  expect(handAfter).not.toEqual(handBefore);
   await page.getByRole('button', { name: /Spółgłoska/ }).click();
 
+  await expect(page.getByLabel('Odpowiedź')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Odgadnij hasło' }).click();
   await page.getByLabel('Odpowiedź').fill('RZEKA');
   await page.getByRole('button', { name: 'Sprawdź' }).click();
   await expect(page.getByRole('heading', { name: 'RZEKA' })).toBeVisible();

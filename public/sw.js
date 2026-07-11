@@ -1,21 +1,11 @@
-const BUILD_VERSION = '3.0.0';
+const BUILD_VERSION = '26.7.0';
 const CACHE_NAME = `litero-redakcja-${BUILD_VERSION}`;
 const APP_SHELL = [
   '/',
   '/index.html',
   '/data/dictionary.json',
   '/manifest.webmanifest',
-  '/favicon.svg',
-  '/fonts/inter-400.woff2',
-  '/fonts/inter-500.woff2',
-  '/fonts/inter-600.woff2',
-  '/fonts/inter-700.woff2',
-  '/fonts/inter-800.woff2',
-  '/fonts/outfit-400.woff2',
-  '/fonts/outfit-500.woff2',
-  '/fonts/outfit-700.woff2',
-  '/fonts/outfit-800.woff2',
-  '/fonts/outfit-900.woff2'
+  '/favicon.svg'
 ];
 
 self.addEventListener('install', event => {

@@ -18,8 +18,8 @@ npm run test:e2e
 
 1. Gracz otrzymuje definicję oraz zakryte hasło.
 2. Z ośmiu liter układa poprawne polskie słowa.
-3. Każde przyjęte słowo pozwala wybrać wskazówkę: spółgłoskę, samogłoskę,
-   pozycję litery albo dodatkową próbę.
+3. Każde przyjęte słowo wymienia użyte litery na nowe i pozwala wybrać
+   podpowiedź: spółgłoskę, samogłoskę, dowolną literę albo dodatkową próbę.
 4. Gracz może w dowolnym momencie spróbować odgadnąć hasło.
 5. Po rundzie poznaje pełne znaczenie, przykład i ciekawostkę oraz odpowiada na
    jedno nieblokujące pytanie.
@@ -59,13 +59,15 @@ do czasu zakończenia szerszych playtestów. Nie są ładowane przez nową aplik
 
 Interfejs interpretuje język Primary Simplified jako ciepłą, drukarską rozkładówkę:
 papierowe powierzchnie, spokojne szarości oraz czerwone, niebieskie i żółte akcenty.
-Gra oferuje jasny, ciemny i systemowy motyw, pełną obsługę klawiatury, widoczny fokus,
-cele dotykowe minimum 44 px, komunikaty `aria-live` i ograniczenie animacji przez
-`prefers-reduced-motion`.
+Geist Variable obsługuje cały tekst, a Geist Mono Variable — litery, wyniki i dane.
+Odstępy, promienie, typografia i proporcje układu korzystają z jednej skali opartej
+na złotym podziale. Gra oferuje jasny, ciemny i systemowy motyw, pełną obsługę
+klawiatury, widoczny fokus, cele dotykowe minimum 42 px, komunikaty `aria-live`
+i ograniczenie animacji przez `prefers-reduced-motion`.
 
 ## Dane i prywatność
 
 Walidacja słów korzysta z lokalnego słownika gier słownych SJP.PL. Aplikacja nie
 wysyła danych gracza. Zapis, preferencje i wyniki dzienne pozostają w `localStorage`.
-Service worker w wersji zgodnej z wydaniem `3.0.0` udostępnia zasoby po pierwszym
+Service worker w wersji zgodnej z wydaniem `26.7.0` udostępnia zasoby po pierwszym
 wczytaniu także offline.

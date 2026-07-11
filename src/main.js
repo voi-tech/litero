@@ -1,11 +1,14 @@
 import puzzles from '../data/editorial-puzzles.json';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import { loadDictionary, isValidWord } from './dictionary.js';
-import { localDateString, hashSeed, nextRandom } from './rng.js';
+import { localDateString } from './rng.js';
 import { validatePuzzleContent } from './editorial/content.js';
 import { SUPPORT_LEVELS } from './editorial/adaptation.js';
 import { answerKnowledge, attemptSolve, chooseReward, composeWord, continueComposing, createRound } from './editorial/roundEngine.js';
 import { completeRound, continueRun, createEditorialRun } from './editorial/runEngine.js';
 import { scoreEditorialRound } from './editorial/scoring.js';
+import { createLetterSupply } from './editorial/letters.js';
 import {
   clearEditorialRun, loadEditorialRun, loadPreferences, saveEditorialRun,
   EDITORIAL_SAVE_KEY,
@@ -94,10 +97,10 @@ function renderStart() {
         </div>
       </article>
       <aside class="start-panel">
-        ${tutorial ? `<article class="paper-card"><p class="eyebrow">Pierwsza wizyta</p><h2>Zacznij od próby</h2><p>Jedno prowadzone hasło pokaże wszystkie decyzje bez ryzyka porażki.</p><button class="button button--blue button--wide" id="start-tutorial">Samouczek</button></article>` : ''}
-        <article class="paper-card mode-card"><span class="mode-card__number">6</span><div><h2>Pełne wydanie</h2><p>Pięć haseł i finał. Około 12–20 minut.</p></div></article>
-        <article class="paper-card mode-card"><span class="mode-card__number">3</span><div><h2>Hasła dnia</h2><p>Ta sama łamigłówka dla wszystkich. Około 5–8 minut.</p></div></article>
-        <article class="paper-card">
+        ${tutorial ? `<article class="surface"><p class="eyebrow">Pierwsza wizyta</p><h2>Zacznij od próby</h2><p>Jedno prowadzone hasło pokaże wszystkie decyzje bez ryzyka porażki.</p><button class="button button--blue button--wide" id="start-tutorial">Samouczek</button></article>` : ''}
+        <article class="surface mode-card"><span class="mode-card__number">6</span><div><h2>Pełna gra</h2><p>Pięć haseł i finał. Około 12–20 minut.</p></div></article>
+        <article class="surface mode-card"><span class="mode-card__number">3</span><div><h2>Hasła dnia</h2><p>Ta sama łamigłówka dla wszystkich. Około 5–8 minut.</p></div></article>
+        <article class="surface">
           <label for="support-mode"><strong>Poziom wskazówek</strong></label>
           <select class="text-input button--wide" id="support-mode">
             <option value="auto" ${preferences.supportMode === 'auto' ? 'selected' : ''}>Automatyczny</option>
@@ -145,20 +148,6 @@ function startTutorial() {
   startCurrentRound();
 }
 
-function makeHand(puzzle, seed) {
-  const target = [...new Set([...puzzle.word])].slice(0, 6);
-  const fillers = ['A', 'E', 'I', 'K', 'O', 'T', 'R', 'S'];
-  const hand = [...target];
-  for (const letter of fillers) if (hand.length < 8 && !hand.includes(letter)) hand.push(letter);
-  let state = hashSeed(seed);
-  for (let index = hand.length - 1; index > 0; index--) {
-    const random = nextRandom(state); state = random.state;
-    const targetIndex = Math.floor(random.value * (index + 1));
-    [hand[index], hand[targetIndex]] = [hand[targetIndex], hand[index]];
-  }
-  return hand;
-}
-
 function applyToolsToRound(nextRound) {
   const tools = [...run.tools];
   if (tools.includes('zakladka')) nextRound.turnsLeft += 1;
@@ -176,9 +165,11 @@ function startCurrentRound() {
   run = continueRun(run);
   const puzzle = run.puzzles[run.currentIndex];
   if (!puzzle) return renderEnd();
+  const supply = createLetterSupply(`${run.seed}:${run.currentIndex}`, puzzle.word);
   round = applyToolsToRound(createRound({
     puzzle,
-    hand: makeHand(puzzle, `${run.seed}:${run.currentIndex}`),
+    hand: supply.hand,
+    letterPool: supply.pool,
     supportLevel: run.supportProfile.level,
   }));
   if (run.currentIndex === run.puzzles.length - 1 && run.results.length) {
@@ -198,16 +189,16 @@ function renderRound() {
   const progress = run.puzzles.map((_, index) => `<span class="${index < run.currentIndex ? 'done' : index === run.currentIndex ? 'current' : ''}"></span>`).join('');
   const roundLabel = run.isTutorial ? 'Samouczek' : run.currentIndex === run.puzzles.length - 1 ? 'Finał wydania' : escapeHTML(puzzle.category);
   app.innerHTML = `<section class="page">
-    <header class="page-header"><div><p class="eyebrow">${roundLabel} • hasło ${run.currentIndex + 1}/${run.puzzles.length}</p><h1>${run.isTutorial ? 'Próba redakcyjna' : 'Odkryj znaczenie'}</h1><div class="progress-strip" role="progressbar" aria-label="Postęp wydania" aria-valuemin="0" aria-valuemax="${run.puzzles.length}" aria-valuenow="${run.currentIndex + 1}">${progress}</div></div><div class="stats-line"><span>Atrament <strong>${run.ink}</strong></span><span>Nakład <strong>${run.circulation}%</strong></span></div></header>
+    <header class="page-header"><div><p class="eyebrow">${roundLabel} • hasło ${run.currentIndex + 1}/${run.puzzles.length}</p><h1>${run.isTutorial ? 'Próba' : 'Odkryj znaczenie'}</h1><div class="progress-strip" role="progressbar" aria-label="Postęp gry" aria-valuemin="0" aria-valuemax="${run.puzzles.length}" aria-valuenow="${run.currentIndex + 1}">${progress}</div></div><div class="stats-line"><span>Monety <strong>${run.ink}</strong></span><span>Pozostałe szanse <strong>${run.circulation}%</strong></span></div></header>
     <div class="game-layout">
       <div>
-        <article class="paper-card definition-card"><p class="eyebrow">Definicja</p><blockquote>${escapeHTML(definition)}</blockquote><div class="masked-word" role="group" aria-label="Hasło ma ${puzzle.word.length} liter">${renderMaskedWord()}</div></article>
+        <article class="surface surface--definition"><p class="eyebrow">Definicja</p><blockquote>${escapeHTML(definition)}</blockquote><div class="masked-word" role="group" aria-label="Hasło ma ${puzzle.word.length} liter">${renderMaskedWord()}</div></article>
         ${renderPhasePanel()}
       </div>
       <aside class="round-sidebar">
-        <article class="paper-card"><h2>Stan łamu</h2><div class="metric"><span>Tury</span><strong>${round.turnsLeft}</strong></div><div class="metric"><span>Próby</span><strong>${round.attemptsLeft}</strong></div><div class="metric"><span>Warsztat</span><strong>${round.wordCraftPoints}</strong></div></article>
-        <article class="paper-card"><p class="eyebrow">Poziom wsparcia</p><h3>${capitalize(support.id)}</h3><p>Poziom zmienia się tylko między hasłami.</p></article>
-        ${run.isTutorial ? `<article class="paper-card"><p class="eyebrow">Podpowiedź samouczka</p><p>${tutorialHint()}</p></article>` : ''}
+        <article class="surface"><h2>Ta runda</h2><div class="metric"><span>Pozostałe ruchy</span><strong>${round.turnsLeft}</strong></div><div class="metric"><span>Próby hasła</span><strong>${round.attemptsLeft}</strong></div><div class="metric"><span>Punkty za słowa</span><strong>${round.wordCraftPoints}</strong></div></article>
+        <article class="surface"><p class="eyebrow">Poziom podpowiedzi</p><h3>${capitalize(support.id)}</h3><p>Zmienia się tylko między hasłami.</p></article>
+        ${run.isTutorial ? `<article class="surface"><p class="eyebrow">Podpowiedź</p><p>${tutorialHint()}</p></article>` : ''}
       </aside>
     </div>
   </section>`;
@@ -222,17 +213,17 @@ function renderMaskedWord() {
 function renderPhasePanel() {
   if (round.phase === 'compose') {
     const word = selectedIndices.map(index => round.hand[index]).join('');
-    return `<section class="composer" aria-labelledby="compose-title"><p class="eyebrow">Kaszta liter</p><h2 id="compose-title">Ułóż słowo</h2><div class="selected-word" id="selected-word">${word || '—'}</div><div class="letter-rack">${round.hand.map((letter, index) => `<button class="letter-tile" type="button" data-letter-index="${index}" aria-pressed="${selectedIndices.includes(index)}" aria-label="Litera ${letter}">${letter}</button>`).join('')}</div><div class="button-row"><button class="button button--quiet" id="clear-word">Wyczyść</button><button class="button button--primary" id="play-word" ${word.length < 2 ? 'disabled' : ''}>Złóż słowo</button><button class="button button--blue" id="open-guess">Odgadnij hasło</button></div><p id="word-message" role="status"></p></section>`;
+    return `<section class="surface surface--composer" aria-labelledby="compose-title"><p class="eyebrow">Litery</p><h2 id="compose-title">Ułóż słowo</h2><div class="selected-word" id="selected-word">${word || '—'}</div><div class="letter-rack">${round.hand.map((letter, index) => `<button class="letter-tile" type="button" data-letter-index="${index}" aria-pressed="${selectedIndices.includes(index)}" aria-label="Litera ${letter}">${letter}</button>`).join('')}</div><div class="button-row"><button class="button button--quiet" id="clear-word">Wyczyść</button><button class="button button--primary" id="play-word" ${word.length < 2 || round.turnsLeft <= 0 ? 'disabled' : ''}>Zatwierdź słowo</button><button class="button button--blue" id="open-guess">Odgadnij hasło</button></div><p id="word-message" role="status"></p></section>`;
   }
   if (round.phase === 'reward') {
-    return `<section class="composer"><p class="eyebrow">Korekta przyjęta</p><h2>Wybierz wskazówkę</h2><div class="reward-grid"><button class="button reward" data-reward="reveal-consonant"><strong>Spółgłoska</strong>Odsłoń pierwszą ukrytą spółgłoskę.</button><button class="button reward" data-reward="buy-vowel"><strong>Samogłoska</strong>Odsłoń pierwszą ukrytą samogłoskę.</button><button class="button reward" data-reward="locate-letter"><strong>Pozycja</strong>Odkryj kolejną literę hasła.</button><button class="button reward" data-reward="extra-attempt"><strong>Dodatkowa próba</strong>Zyskaj jeszcze jedną odpowiedź.</button></div></section>`;
+    return `<section class="surface surface--composer"><p class="eyebrow">Słowo przyjęte</p><h2>Wybierz podpowiedź</h2><div class="reward-grid"><button class="button reward" data-reward="reveal-consonant"><strong>Spółgłoska</strong>Odsłoń pierwszą ukrytą spółgłoskę.</button><button class="button reward" data-reward="buy-vowel"><strong>Samogłoska</strong>Odsłoń pierwszą ukrytą samogłoskę.</button><button class="button reward" data-reward="locate-letter"><strong>Dowolna litera</strong>Odkryj kolejną literę hasła.</button><button class="button reward" data-reward="extra-attempt"><strong>Dodatkowa próba</strong>Zyskaj jeszcze jedną próbę hasła.</button></div></section>`;
   }
   if (round.phase === 'solve') return renderGuessPanel(true);
   return '';
 }
 
 function renderGuessPanel(canContinue) {
-  return `<section class="composer"><p class="eyebrow">Decyzja redaktora</p><h2>Jak brzmi hasło?</h2><form class="guess-row" id="guess-form"><label class="live-region" for="guess-input">Odpowiedź</label><input class="text-input" id="guess-input" autocomplete="off" maxlength="32" required><button class="button button--primary">Sprawdź</button></form>${canContinue ? '<button class="button button--quiet" id="continue-compose">Ułóż kolejne słowo</button>' : ''}</section>`;
+  return `<section class="surface surface--composer"><p class="eyebrow">Odgadywanie</p><h2>Jak brzmi hasło?</h2><form class="guess-row" id="guess-form"><label class="live-region" for="guess-input">Odpowiedź</label><input class="text-input" id="guess-input" autocomplete="off" maxlength="32" required><button class="button button--primary">Sprawdź</button></form>${canContinue ? '<button class="button button--quiet" id="continue-compose">Wróć do liter</button>' : ''}</section>`;
 }
 
 function bindRoundEvents() {
@@ -281,14 +272,14 @@ function playSelectedWord() {
     return;
   }
   const related = round.puzzle.synonyms.some(item => item.toLocaleUpperCase('pl-PL') === word) || round.puzzle.word.includes(word);
-  round = composeWord(round, { word, valid: true, categoryRelated: related });
+  round = composeWord(round, { word, valid: true, categoryRelated: related, indices: selectedIndices });
   selectedIndices = [];
   persist(); renderRound(); announce(`Przyjęto słowo ${word}. Wybierz wskazówkę.`);
 }
 
 function renderLearn() {
   const puzzle = round.puzzle;
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">${round.solved ? 'Hasło rozwiązane' : 'Poznaj odpowiedź'}</p><h1 class="knowledge__word">${escapeHTML(puzzle.word)}</h1><p class="lede">${escapeHTML(puzzle.definitions.full)}</p><blockquote class="quote">${escapeHTML(puzzle.example)}</blockquote><article class="paper-card"><h2>Czy wiesz?</h2><p>${escapeHTML(puzzle.curiosity)}</p><p><strong>Synonim:</strong> ${escapeHTML(puzzle.synonyms.join(', '))}</p></article><section><p class="eyebrow">Jedno pytanie na utrwalenie</p><h2>${escapeHTML(puzzle.knowledgeQuestion.prompt)}</h2><div class="knowledge-options">${puzzle.knowledgeQuestion.options.map((option, index) => `<button class="button" data-answer="${index}">${escapeHTML(option)}</button>`).join('')}</div></section></section>`;
+  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">${round.solved ? 'Hasło rozwiązane' : 'Poznaj odpowiedź'}</p><h1 class="knowledge__word">${escapeHTML(puzzle.word)}</h1><p class="lede">${escapeHTML(puzzle.definitions.full)}</p><blockquote class="quote">${escapeHTML(puzzle.example)}</blockquote><article class="surface"><h2>Czy wiesz?</h2><p>${escapeHTML(puzzle.curiosity)}</p><p><strong>Synonim:</strong> ${escapeHTML(puzzle.synonyms.join(', '))}</p></article><section><p class="eyebrow">Jedno pytanie na utrwalenie</p><h2>${escapeHTML(puzzle.knowledgeQuestion.prompt)}</h2><div class="knowledge-options">${puzzle.knowledgeQuestion.options.map((option, index) => `<button class="button" data-answer="${index}">${escapeHTML(option)}</button>`).join('')}</div></section></section>`;
   document.querySelectorAll('[data-answer]').forEach(button => button.addEventListener('click', () => finishKnowledge(Number(button.dataset.answer))));
   focusMain();
 }
@@ -324,7 +315,7 @@ function roundResult() {
 }
 
 function renderBetween(score = run.results.at(-1)?.score, knowledgeCorrect = run.results.at(-1)?.knowledgeCorrect) {
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Koniec łamu</p><h1>${knowledgeCorrect ? 'Wiedza zostaje.' : 'Następnym razem będzie łatwiej.'}</h1><div class="score-grid"><article class="paper-card"><span>Rozwiązanie</span><strong>${score.solution}</strong></article><article class="paper-card"><span>Warsztat</span><strong>${score.craft}</strong></article><article class="paper-card"><span>Wiedza</span><strong>${score.knowledge}</strong></article><article class="paper-card"><span>Styl</span><strong>${score.style}</strong></article></div><article class="paper-card"><p class="eyebrow">Skład narzędzi • atrament: ${run.ink}</p><h2>Przygotuj następne hasło</h2><div class="tool-grid">${renderTools()}</div></article><button class="button button--primary button--wide" id="next-round">Następne hasło</button></section>`;
+  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Podsumowanie rundy</p><h1>${knowledgeCorrect ? 'Dobra odpowiedź.' : 'Następnym razem będzie łatwiej.'}</h1><div class="score-grid"><article class="surface surface--center"><span>Hasło</span><strong>${score.solution}</strong></article><article class="surface surface--center"><span>Słowa</span><strong>${score.craft}</strong></article><article class="surface surface--center"><span>Wiedza</span><strong>${score.knowledge}</strong></article><article class="surface surface--center"><span>Bonus</span><strong>${score.style}</strong></article></div><article class="surface"><p class="eyebrow">Narzędzia • monety: ${run.ink}</p><h2>Przygotuj następne hasło</h2><div class="tool-grid">${renderTools()}</div></article><button class="button button--primary button--wide" id="next-round">Następne hasło</button></section>`;
   document.querySelectorAll('[data-tool]').forEach(button => button.addEventListener('click', () => buyTool(button.dataset.tool, Number(button.dataset.cost))));
   document.getElementById('next-round')?.addEventListener('click', startCurrentRound);
   focusMain();
@@ -350,7 +341,7 @@ function renderEnd() {
   clearEditorialRun();
   const solved = run.results.filter(result => result.solved).length;
   const learned = run.results.filter(result => result.knowledgeCorrect).length;
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Wydanie zamknięte</p><h1>${run.mode === 'daily' ? 'Hasła dnia gotowe' : 'Redakcja zakończona'}</h1><div class="result-score">${run.score}</div><p class="lede">punktów za całe wydanie</p><div class="score-grid"><article class="paper-card"><span>Rozwiązane</span><strong>${solved}/${run.puzzles.length}</strong></article><article class="paper-card"><span>Utrwalone</span><strong>${learned}</strong></article><article class="paper-card"><span>Nakład</span><strong>${run.circulation}%</strong></article><article class="paper-card"><span>Poziom</span><strong>${run.supportProfile.level + 1}</strong></article></div><div class="button-row"><button class="button button--primary" id="home-button">Nowe wydanie</button>${run.mode === 'daily' ? '<button class="button button--blue" id="share-button">Kopiuj wynik</button>' : ''}</div></section>`;
+  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Koniec gry</p><h1>${run.mode === 'daily' ? 'Hasła dnia ukończone' : 'Gra ukończona'}</h1><div class="result-score">${run.score}</div><p class="lede">punktów łącznie</p><div class="score-grid"><article class="surface surface--center"><span>Rozwiązane</span><strong>${solved}/${run.puzzles.length}</strong></article><article class="surface surface--center"><span>Utrwalone</span><strong>${learned}</strong></article><article class="surface surface--center"><span>Pozostałe szanse</span><strong>${run.circulation}%</strong></article><article class="surface surface--center"><span>Poziom</span><strong>${run.supportProfile.level + 1}</strong></article></div><div class="button-row"><button class="button button--primary" id="home-button">Nowa gra</button>${run.mode === 'daily' ? '<button class="button button--blue" id="share-button">Kopiuj wynik</button>' : ''}</div></section>`;
   document.getElementById('home-button')?.addEventListener('click', renderStart);
   document.getElementById('share-button')?.addEventListener('click', shareResult);
   focusMain();

@@ -17,18 +17,19 @@ const puzzle = {
 
 describe('editorial round state machine', () => {
   test('moves through compose, reward, solve, learn and complete', () => {
-    let state = createRound({ puzzle, hand: ['A', 'T', 'O', 'M', 'K', 'O', 'T', 'Y'], supportLevel: 1 });
+    let state = createRound({ puzzle, hand: ['A', 'T', 'O', 'M', 'K', 'O', 'T', 'Y'], letterPool: ['R', 'S', 'N'], supportLevel: 1 });
     expect(state.phase).toBe('compose');
 
-    state = composeWord(state, { word: 'KOT', valid: true, categoryRelated: false });
+    state = composeWord(state, { word: 'KOT', valid: true, categoryRelated: false, indices: [4, 5, 6] });
     expect(state.phase).toBe('reward');
     expect(state.history).toHaveLength(1);
 
     state = chooseReward(state, 'reveal-consonant');
-    expect(state.phase).toBe('solve');
+    expect(state.phase).toBe('compose');
     expect(state.revealed.size).toBe(1);
+    expect(state.hand).toEqual(['A', 'T', 'O', 'M', 'R', 'S', 'N', 'Y']);
 
-    state = attemptSolve(state, 'ATOM');
+    state = attemptSolve({ ...state, phase: 'solve' }, 'ATOM');
     expect(state.phase).toBe('learn');
     expect(state.solved).toBe(true);
 
