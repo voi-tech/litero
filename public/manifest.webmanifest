@@ -1,12 +1,12 @@
 {
-  "name": "Litero — Redakcja słów",
+  "name": "Litero — polska gra słowna",
   "short_name": "Litero",
-  "description": "Edukacyjna polska gra o układaniu słów, odkrywaniu haseł i poznawaniu ich znaczeń.",
+  "description": "Układaj słowa, pokonuj kategorie i buduj trwały Słownik.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#e9e1d0",
-  "theme_color": "#e9e1d0",
+  "background_color": "#e8e3dc",
+  "theme_color": "#e8e3dc",
   "icons": [
     {
       "src": "/favicon.svg",

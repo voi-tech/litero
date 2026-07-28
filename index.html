@@ -3,25 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Litero — edukacyjna polska gra słowna o odkrywaniu znaczeń.">
-  <meta name="theme-color" content="#e9e1d0">
-  <meta property="og:title" content="Litero — Redakcja słów">
-  <meta property="og:description" content="Układaj słowa, odkrywaj hasła i poznawaj ich znaczenia.">
+  <meta name="description" content="Litero — polska gra słowna o odkrywaniu słów, definicji i kategorii.">
+  <meta name="theme-color" content="#e8e3dc">
+  <meta property="og:title" content="Litero — polska gra słowna">
+  <meta property="og:description" content="Układaj słowa, rozwijaj wynik i buduj własny Słownik.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="/favicon.svg">
-  <title>Litero — Redakcja słów</title>
+  <title>Litero — polska gra słowna</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <a class="skip-link" href="#app-main">Przejdź do gry</a>
+  <a class="skip-link" href="#app-main">Przejdź do treści</a>
   <header class="masthead">
-    <a class="brand" href="#" aria-label="Litero — strona główna">
-      <span class="brand__mark" aria-hidden="true">L</span>
-      <span><strong>LITERO</strong><small>Redakcja słów</small></span>
-    </a>
-    <div class="masthead__actions">
+    <button class="brand" id="home-button" type="button" aria-label="Litero — ekran główny">
+      <span class="brand-mark" aria-hidden="true">L</span>
+      <span><strong>Litero</strong><small>gra słowna</small></span>
+    </button>
+    <nav aria-label="Główna nawigacja">
+      <button id="dictionary-button" type="button">Słownik</button>
+      <button id="cards-button" type="button">Karty językowe</button>
+      <button id="sets-button" type="button">Zestawy liter</button>
+    </nav>
+    <div class="masthead-actions">
       <button class="icon-button" id="rules-button" type="button" aria-label="Otwórz zasady">?</button>
       <button class="icon-button" id="theme-button" type="button" aria-label="Zmień motyw">◐</button>
     </div>
@@ -30,27 +35,19 @@
   <main id="app-main" tabindex="-1"></main>
   <div class="live-region" id="live-region" aria-live="polite" aria-atomic="true"></div>
 
-  <dialog id="rules-dialog" class="paper-dialog" aria-labelledby="rules-title">
+  <dialog id="rules-dialog" aria-labelledby="rules-title">
     <form method="dialog">
-      <button class="dialog-close" value="close" aria-label="Zamknij zasady">×</button>
-      <p class="eyebrow">Instrukcja redakcyjna</p>
-      <h2 id="rules-title">Jak grać?</h2>
-      <ol class="rules-list">
-        <li>Przeczytaj definicję ukrytego hasła.</li>
-        <li>Układaj poprawne słowa z ośmiu liter, aby zdobywać wskazówki.</li>
-        <li>Wybierz nagrodę: spółgłoskę, samogłoskę, pozycję litery albo próbę.</li>
-        <li>Odgadnij hasło i poznaj jego znaczenie oraz przykład użycia.</li>
+      <button class="dialog-close" value="close" aria-label="Zamknij">×</button>
+      <p class="overline">Zasady</p>
+      <h2 id="rules-title">Jak działa podejście?</h2>
+      <ol>
+        <li>Każda kategoria obejmuje Łatwe słowo, Trudne słowo i obowiązkowy finał — Kategorię.</li>
+        <li>Przed wyzwaniem możesz odgadnąć słowo z definicji i je pominąć albo pominąć bez odpowiedzi. Jawny skutek zadziała przy następnym rozegranym wyzwaniu.</li>
+        <li>Po rozpoczęciu układaj dokładnie jedno poprawne słowo. Niepoprawny układ nie zużywa zagrania.</li>
+        <li>Osiągnij cel punktowy, aby odkryć właściwe słowo. Kategorii nie można pominąć.</li>
+        <li>Sklep otwiera się tylko po wyzwaniu wygranym punktami. Pokonana Kategoria zapisuje cały dział w trwałym Słowniku.</li>
       </ol>
-      <p>Nie musisz wygrać każdej rundy. Litero pomaga dopasować poziom kolejnych wskazówek.</p>
-    </form>
-  </dialog>
-
-  <dialog id="migration-dialog" class="paper-dialog" aria-labelledby="migration-title">
-    <form method="dialog">
-      <p class="eyebrow">Nowe wydanie</p>
-      <h2 id="migration-title">Litero zmieniło zasady</h2>
-      <p>Poprzedniego runu nie można bezpiecznie przenieść do Redakcji słów. Zachowaliśmy ustawienia i rekordy, ale nową rozgrywkę rozpoczniesz od pierwszego hasła.</p>
-      <button class="button button--primary" value="close">Rozumiem</button>
+      <button class="button primary" value="close">Rozumiem</button>
     </form>
   </dialog>
 

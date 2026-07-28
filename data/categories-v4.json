@@ -1,0 +1,693 @@
+{
+  "version": 4,
+  "categories": [
+    {
+      "id": "filozofia",
+      "name": "Filozofia",
+      "icon": "brain",
+      "definition": "Dziedzina namysłu nad rzeczywistością, poznaniem, wartościami i zasadami rozumowania.",
+      "easyWords": [
+        {
+          "word": "LOGOS",
+          "lemma": "logos",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Greckie pojęcie oznaczające rozum, słowo lub zasadę porządkującą wszechświat"
+        },
+        {
+          "word": "ETYKA",
+          "lemma": "etyka",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Dział filozofii badający zasady moralne i normy postępowania człowieka"
+        },
+        {
+          "word": "DUSZA",
+          "lemma": "dusza",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Niematerialna część człowieka; wedle filozofii platońskiej źródło myśli i uczuć"
+        },
+        {
+          "word": "DOBRO",
+          "lemma": "dobro",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wartość moralna oznaczająca to, co uznaje się za słuszne, pożyteczne lub godne wyboru"
+        },
+        {
+          "word": "ROZUM",
+          "lemma": "rozum",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zdolność logicznego myślenia, wnioskowania i rozpoznawania zależności"
+        },
+        {
+          "word": "CNOTA",
+          "lemma": "cnota",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Trwała dyspozycja do czynienia dobra i doskonalenia charakteru"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "PRAWDA",
+          "lemma": "prawda",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zgodność sądu lub wypowiedzi z rzeczywistością; podstawowe pojęcie teorii poznania"
+        },
+        {
+          "word": "PIĘKNO",
+          "lemma": "piękno",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wartość estetyczna odnoszona do harmonii, proporcji i przeżycia zachwytu"
+        },
+        {
+          "word": "EMPIRYZM",
+          "lemma": "empiryzm",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Kierunek filozoficzny uznający doświadczenie zmysłowe za jedyne źródło poznania"
+        },
+        {
+          "word": "NIHILIZM",
+          "lemma": "nihilizm",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Pogląd filozoficzny negujący istnienie wartości, norm moralnych i sensu życia"
+        }
+      ]
+    },
+    {
+      "id": "nauka",
+      "name": "Nauka",
+      "icon": "microscope",
+      "definition": "Uporządkowana działalność służąca zdobywaniu, sprawdzaniu i przekazywaniu wiedzy.",
+      "easyWords": [
+        {
+          "word": "FOTON",
+          "lemma": "foton",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Elementarna cząstka światła; kwant promieniowania elektromagnetycznego bez masy spoczynkowej"
+        },
+        {
+          "word": "ATOM",
+          "lemma": "atom",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Najmniejsza część pierwiastka chemicznego zachowująca jego właściwości chemiczne"
+        },
+        {
+          "word": "MASA",
+          "lemma": "masa",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wielkość fizyczna określająca ilość materii i bezwładność ciała"
+        },
+        {
+          "word": "SIŁA",
+          "lemma": "siła",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Oddziaływanie mogące zmienić ruch ciała lub wywołać jego odkształcenie"
+        },
+        {
+          "word": "PRĄD",
+          "lemma": "prąd",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Uporządkowany ruch ładunków elektrycznych w przewodniku lub ośrodku"
+        },
+        {
+          "word": "FALKA",
+          "lemma": "falka",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Krótka fala lub funkcja używana do analizy sygnałów w różnych skalach"
+        },
+        {
+          "word": "ENZYM",
+          "lemma": "enzym",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Białkowy katalizator przyspieszający reakcje chemiczne w organizmach"
+        },
+        {
+          "word": "GENOM",
+          "lemma": "genom",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Kompletna informacja genetyczna organizmu zakodowana w DNA lub RNA"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "NEUTRON",
+          "lemma": "neutron",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Neutralna elektrycznie cząstka elementarna wchodząca w skład jądra atomowego"
+        },
+        {
+          "word": "OSMOZA",
+          "lemma": "osmoza",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Dyfuzja wody przez błonę półprzepuszczalną z roztworu mniej stężonego do bardziej stężonego"
+        },
+        {
+          "word": "HIPOTEZA",
+          "lemma": "hipoteza",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Przypuszczenie naukowe wymagające weryfikacji, punkt wyjścia do badań empirycznych"
+        },
+        {
+          "word": "EWOLUCJA",
+          "lemma": "ewolucja",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Proces stopniowych zmian organizmów żywych prowadzący do powstawania nowych gatunków"
+        },
+        {
+          "word": "SYNTEZA",
+          "lemma": "synteza",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Połączenie różnych elementów w całość; w chemii — tworzenie złożonych związków z prostszych"
+        }
+      ]
+    },
+    {
+      "id": "historia",
+      "name": "Historia",
+      "icon": "sword",
+      "definition": "Dziedzina wiedzy badająca przeszłość ludzi, społeczeństw oraz zachodzących między nimi przemian.",
+      "easyWords": [
+        {
+          "word": "EDYKT",
+          "lemma": "edykt",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Uroczyste rozporządzenie lub dekret wydany przez władcę z mocą obowiązującą prawa"
+        },
+        {
+          "word": "BITWA",
+          "lemma": "bitwa",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zbrojne starcie większych sił wojskowych w określonym miejscu i czasie"
+        },
+        {
+          "word": "TRON",
+          "lemma": "tron",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Symbol i miejsce sprawowania władzy monarszej"
+        },
+        {
+          "word": "SEJM",
+          "lemma": "sejm",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zgromadzenie przedstawicielskie sprawujące władzę ustawodawczą w Polsce"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "KRONIKA",
+          "lemma": "kronika",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Pisany zapis wydarzeń historycznych w porządku chronologicznym"
+        },
+        {
+          "word": "HETMAN",
+          "lemma": "hetman",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Najwyższy dowódca wojskowy w dawnej Polsce; naczelny wódz armii koronnej lub litewskiej"
+        },
+        {
+          "word": "CESARZ",
+          "lemma": "cesarz",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Monarcha noszący najwyższy tytuł władzy w imperium lub państwie"
+        },
+        {
+          "word": "DYNASTIA",
+          "lemma": "dynastia",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ród panujący przekazujący władzę kolejnym pokoleniom"
+        },
+        {
+          "word": "IMPERIUM",
+          "lemma": "imperium",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Rozległe państwo sprawujące władzę nad wieloma narodami i terytoriami"
+        }
+      ]
+    },
+    {
+      "id": "kultura",
+      "name": "Kultura i sztuka",
+      "icon": "palette",
+      "definition": "Obszar ludzkiej twórczości, zwyczajów i dzieł służących wyrażaniu oraz przekazywaniu znaczeń.",
+      "easyWords": [
+        {
+          "word": "FRESK",
+          "lemma": "fresk",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Technika malarska polegająca na nakładaniu farb na świeży tynk; malowidło ścienne"
+        },
+        {
+          "word": "SONET",
+          "lemma": "sonet",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Liryczna forma poetycka złożona z czternastu wersów o określonym schemacie rymów"
+        },
+        {
+          "word": "OPERA",
+          "lemma": "opera",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Sceniczne dzieło muzyczne łączące śpiew, orkiestrę i akcję dramatyczną"
+        },
+        {
+          "word": "BAROK",
+          "lemma": "barok",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Styl w sztuce XVII wieku cechujący się dynamiką, kontrastem i bogactwem form"
+        },
+        {
+          "word": "MURAL",
+          "lemma": "mural",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wielkoformatowe malowidło wykonane na ścianie budynku"
+        },
+        {
+          "word": "FARBA",
+          "lemma": "farba",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Substancja barwiąca używana do pokrywania powierzchni i tworzenia obrazu"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "STROFA",
+          "lemma": "strofa",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Regularnie powtarzający się układ wersów w wierszu; zwrotka"
+        },
+        {
+          "word": "SONATA",
+          "lemma": "sonata",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Instrumentalny utwór muzyczny o wieloczęściowej budowie"
+        },
+        {
+          "word": "RZEŹBA",
+          "lemma": "rzeźba",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Dzieło plastyczne tworzone w trzech wymiarach"
+        },
+        {
+          "word": "SYMFONIA",
+          "lemma": "symfonia",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Rozbudowany utwór orkiestrowy złożony zazwyczaj z czterech części o zróżnicowanym charakterze"
+        }
+      ]
+    },
+    {
+      "id": "geografia",
+      "name": "Geografia",
+      "icon": "globe",
+      "definition": "Nauka opisująca Ziemię, jej środowisko, zjawiska przestrzenne oraz działalność człowieka.",
+      "easyWords": [
+        {
+          "word": "ATOL",
+          "lemma": "atol",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Koralowa wyspa w kształcie pierścienia otaczająca lagunę na środku oceanu"
+        },
+        {
+          "word": "DELTA",
+          "lemma": "delta",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ujście rzeki rozgałęziające się w kilka ramion; tworzy żyzny teren nadbrzeżny"
+        },
+        {
+          "word": "FIORD",
+          "lemma": "fiord",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wąska, głęboka zatoka morska powstała w dolinie polodowcowej"
+        },
+        {
+          "word": "STEP",
+          "lemma": "step",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Bezleśna formacja trawiasta w suchym klimacie kontynentalnym"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "MIERZEJA",
+          "lemma": "mierzeja",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wąski pas lądu oddzielający zatokę lub jezioro przybrzeżne od morza"
+        },
+        {
+          "word": "KANION",
+          "lemma": "kanion",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Głęboka dolina rzeczna o stromych ścianach"
+        },
+        {
+          "word": "LAGUNA",
+          "lemma": "laguna",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Płytki akwen oddzielony od morza mierzeją, rafą lub pasem lądu"
+        },
+        {
+          "word": "DEPRESJA",
+          "lemma": "depresja",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Obszar lądu położony poniżej poziomu morza"
+        },
+        {
+          "word": "LODOWIEC",
+          "lemma": "lodowiec",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Masa lodu lądowego powstała ze skumulowanego śniegu, przemieszczająca się pod wpływem grawitacji"
+        }
+      ]
+    },
+    {
+      "id": "technika",
+      "name": "Technika",
+      "icon": "cog",
+      "definition": "Dziedzina obejmująca sposoby, urządzenia i umiejętności wykorzystywane do praktycznego działania.",
+      "easyWords": [
+        {
+          "word": "TŁOK",
+          "lemma": "tłok",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ruchomy element cylindra w silniku spalinowym zamieniający ciśnienie gazu w ruch postępowy"
+        },
+        {
+          "word": "LASER",
+          "lemma": "laser",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Urządzenie emitujące spójną wiązkę promieniowania świetlnego o dużej intensywności"
+        },
+        {
+          "word": "DŹWIG",
+          "lemma": "dźwig",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Urządzenie służące do podnoszenia i przemieszczania ciężarów"
+        },
+        {
+          "word": "BETON",
+          "lemma": "beton",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Materiał budowlany z cementu, kruszywa i wody"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "ANTENA",
+          "lemma": "antena",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Urządzenie służące do nadawania lub odbioru fal elektromagnetycznych"
+        },
+        {
+          "word": "SILNIK",
+          "lemma": "silnik",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Maszyna przetwarzająca energię na pracę mechaniczną"
+        },
+        {
+          "word": "PRYZMAT",
+          "lemma": "pryzmat",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Przezroczysta bryła załamująca i rozszczepiająca światło"
+        },
+        {
+          "word": "TURBINA",
+          "lemma": "turbina",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Maszyna wirnikowa zamieniająca energię przepływu w ruch obrotowy"
+        },
+        {
+          "word": "REAKTOR",
+          "lemma": "reaktor",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Urządzenie do przeprowadzania kontrolowanych reakcji jądrowych lub chemicznych"
+        },
+        {
+          "word": "PROCESOR",
+          "lemma": "procesor",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Główny układ scalony komputera wykonujący obliczenia i koordynujący pracę systemu"
+        },
+        {
+          "word": "KOMPUTER",
+          "lemma": "komputer",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Elektroniczne urządzenie do przetwarzania danych według zapisanego programu"
+        }
+      ]
+    },
+    {
+      "id": "religia",
+      "name": "Religia",
+      "icon": "cross",
+      "definition": "Zespół wierzeń, praktyk i zasad odnoszących człowieka do tego, co uznaje on za święte.",
+      "easyWords": [
+        {
+          "word": "IKONA",
+          "lemma": "ikona",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Sakralny obraz malowany na desce według ścisłych reguł; obiekt kultu w chrześcijaństwie wschodnim"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "DOGMAT",
+          "lemma": "dogmat",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Twierdzenie uznane za niepodważalną prawdę wiary, przyjmowane bez dowodu"
+        },
+        {
+          "word": "KAPŁAN",
+          "lemma": "kapłan",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Osoba pełniąca funkcje religijne i obrzędowe w danej wspólnocie lub religii"
+        },
+        {
+          "word": "MODLITWA",
+          "lemma": "modlitwa",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Religijny akt zwrócenia się do Boga, bóstwa lub sacrum"
+        },
+        {
+          "word": "PSALMY",
+          "lemma": "psalmy",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Biblijne pieśni modlitewne i hymny religijne"
+        },
+        {
+          "word": "OFIARA",
+          "lemma": "ofiara",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Dar lub czyn składany bóstwu albo sacrum"
+        },
+        {
+          "word": "MISTYK",
+          "lemma": "mistyk",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Osoba dążąca do bezpośredniego doświadczenia religijnego"
+        },
+        {
+          "word": "RYTUAŁ",
+          "lemma": "rytuał",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ustalony ciąg czynności symbolicznych"
+        },
+        {
+          "word": "LITURGIA",
+          "lemma": "liturgia",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zbiór przepisanych form i obrzędów sprawowania kultu religijnego"
+        },
+        {
+          "word": "TEOLOGIA",
+          "lemma": "teologia",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Nauka o Bogu i sprawach boskich; systematyczne studium religii i doktryn wiary"
+        }
+      ]
+    },
+    {
+      "id": "gospodarka",
+      "name": "Gospodarka",
+      "icon": "landmark",
+      "definition": "System wytwarzania, podziału i wykorzystywania dóbr oraz usług przez ludzi i instytucje.",
+      "easyWords": [
+        {
+          "word": "AKCJA",
+          "lemma": "akcja",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Papier wartościowy reprezentujący udział w kapitale spółki i uprawniający do dywidendy"
+        },
+        {
+          "word": "RYNEK",
+          "lemma": "rynek",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Miejsce lub mechanizm wymiany dóbr i usług; system kształtowania cen przez popyt i podaż"
+        },
+        {
+          "word": "KURS",
+          "lemma": "kurs",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wartość jednej waluty wyrażona w innej walucie albo aktualna cena papieru wartościowego"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "EKSPORT",
+          "lemma": "eksport",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Sprzedaż towarów lub usług za granicę; jeden z czynników wzrostu gospodarczego"
+        },
+        {
+          "word": "PODATEK",
+          "lemma": "podatek",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Obowiązkowe świadczenie pieniężne pobierane przez państwo lub samorząd na finansowanie wspólnych potrzeb"
+        },
+        {
+          "word": "INFLACJA",
+          "lemma": "inflacja",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Utrzymujący się wzrost ogólnego poziomu cen, który zmniejsza siłę nabywczą pieniądza"
+        },
+        {
+          "word": "KAPITAŁ",
+          "lemma": "kapitał",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zasób majątku lub środków używany do działalności gospodarczej"
+        },
+        {
+          "word": "DEFICYT",
+          "lemma": "deficyt",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Niedobór powstający wtedy, gdy wydatki przewyższają dochody albo zapotrzebowanie przewyższa zasoby"
+        },
+        {
+          "word": "MONOPOL",
+          "lemma": "monopol",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Sytuacja rynkowa, w której jeden podmiot ma wyłączną kontrolę nad dobrami lub usługami"
+        },
+        {
+          "word": "OLIGOPOL",
+          "lemma": "oligopol",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Struktura rynku zdominowana przez kilku dużych producentów kontrolujących ceny"
+        }
+      ]
+    },
+    {
+      "id": "spoleczenstwo",
+      "name": "Społeczeństwo",
+      "icon": "users",
+      "definition": "Ogół ludzi żyjących we wspólnocie i połączonych trwałymi relacjami, normami oraz instytucjami.",
+      "easyWords": [
+        {
+          "word": "NORMA",
+          "lemma": "norma",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Przyjęty wzorzec zachowania lub reguła postępowania obowiązująca w danej grupie społecznej"
+        },
+        {
+          "word": "KLASA",
+          "lemma": "klasa",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Grupa społeczna wyróżniona ze względu na podobne warunki ekonomiczne i pozycję w strukturze"
+        },
+        {
+          "word": "MEDIA",
+          "lemma": "media",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Środki masowego przekazu służące do informowania i kształtowania opinii publicznej"
+        },
+        {
+          "word": "PRAWO",
+          "lemma": "prawo",
+          "partOfSpeech": "rzeczownik",
+          "definition": "System norm regulujących życie społeczne i instytucje"
+        },
+        {
+          "word": "ELITA",
+          "lemma": "elita",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Niewielka grupa osób zajmujących szczególnie wpływową lub uprzywilejowaną pozycję w społeczeństwie"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "KULTURA",
+          "lemma": "kultura",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ogół materialnych i niematerialnych wytworów, wartości oraz zwyczajów przekazywanych w społeczeństwie"
+        },
+        {
+          "word": "PROTEST",
+          "lemma": "protest",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Publiczne wyrażenie sprzeciwu wobec decyzji, działania lub sytuacji uznanej za niewłaściwą"
+        },
+        {
+          "word": "WARTOŚĆ",
+          "lemma": "wartość",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zasada, cecha lub dobro uznawane przez ludzi za ważne i godne dążenia"
+        }
+      ]
+    },
+    {
+      "id": "polska",
+      "name": "Polska",
+      "icon": "shield",
+      "definition": "Państwo w Europie Środkowej oraz wspólnota związana z jego historią, kulturą i terytorium.",
+      "easyWords": [
+        {
+          "word": "SEJM",
+          "lemma": "sejm",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Zgromadzenie przedstawicielskie sprawujące władzę ustawodawczą w Polsce"
+        },
+        {
+          "word": "PIAST",
+          "lemma": "piast",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Członek pierwszej historycznej dynastii panującej w Polsce od X do XIV wieku"
+        },
+        {
+          "word": "ORZEŁ",
+          "lemma": "orzeł",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Duży ptak drapieżny, którego biały wizerunek w koronie znajduje się w godle Polski"
+        },
+        {
+          "word": "WAWEL",
+          "lemma": "wawel",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Wzgórze zamkowe w Krakowie, historyczna siedziba władców"
+        }
+      ],
+      "hardWords": [
+        {
+          "word": "HUSARZ",
+          "lemma": "husarz",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Ciężkozbrojny jeździec polskiej jazdy z XVII w. znany z charakterystycznych skrzydeł przy zbroi"
+        },
+        {
+          "word": "MAZURKA",
+          "lemma": "mazurka",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Polska forma taneczna w metrum 3/4 wywodząca się z Mazowsza; utrwalona przez Chopina"
+        },
+        {
+          "word": "BURSZTYN",
+          "lemma": "bursztyn",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Skamieniała żywica drzew iglastych zwana złotem Bałtyku; ceniony klejnot i surowiec"
+        },
+        {
+          "word": "SZLACHTA",
+          "lemma": "szlachta",
+          "partOfSpeech": "rzeczownik",
+          "definition": "Uprzywilejowany stan społeczny w dawnej Polsce, posiadający ziemię i prawa polityczne"
+        }
+      ]
+    }
+  ]
+}

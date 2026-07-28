@@ -1,9 +1,9 @@
-const BUILD_VERSION = '3.0.0';
-const CACHE_NAME = `litero-redakcja-${BUILD_VERSION}`;
+const BUILD_VERSION = '4.0.0';
+const CACHE_NAME = `litero-${BUILD_VERSION}`;
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/data/dictionary.json',
+  '/data/lexicon-v4.json',
   '/manifest.webmanifest',
   '/favicon.svg',
   '/fonts/inter-400.woff2',
@@ -11,11 +11,7 @@ const APP_SHELL = [
   '/fonts/inter-600.woff2',
   '/fonts/inter-700.woff2',
   '/fonts/inter-800.woff2',
-  '/fonts/outfit-400.woff2',
-  '/fonts/outfit-500.woff2',
-  '/fonts/outfit-700.woff2',
-  '/fonts/outfit-800.woff2',
-  '/fonts/outfit-900.woff2'
+  '/fonts/inter-800.woff2'
 ];
 
 self.addEventListener('install', event => {

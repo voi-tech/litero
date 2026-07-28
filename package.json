@@ -1,6 +1,6 @@
 {
   "name": "litero",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Edukacyjna polska gra słowna o odkrywaniu znaczeń",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "test": "vitest run tests",
     "test:e2e": "playwright test",
     "test:watch": "vitest",
-    "build:dict": "node scripts/build-dictionary.mjs"
+    "build:lexicon": "python3 scripts/build-lexicon.py"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

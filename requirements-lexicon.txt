@@ -1,0 +1,2 @@
+morfeusz2==1.99.15
+wordfreq==3.1.1

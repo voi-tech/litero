@@ -1,8 +1,7 @@
-# Litero — Redakcja słów
+# Litero
 
-Edukacyjna polska gra słowna dla graczy od 7 lat. Łączy układanie słów, odkrywanie
-liter i odgadywanie pojęć. Każda runda kończy się kartą wiedzy z definicją,
-przykładem użycia, synonimem i krótkim pytaniem utrwalającym.
+Polska gra słowna oparta na punktowych wyzwaniach, odkrywaniu definicji i
+budowaniu trwałego Słownika.
 
 ## Uruchomienie
 
@@ -14,58 +13,45 @@ npm run build
 npm run test:e2e
 ```
 
-## Główna pętla
+## Pętla rozgrywki
 
-1. Gracz otrzymuje definicję oraz zakryte hasło.
-2. Z ośmiu liter układa poprawne polskie słowa.
-3. Każde przyjęte słowo pozwala wybrać wskazówkę: spółgłoskę, samogłoskę,
-   pozycję litery albo dodatkową próbę.
-4. Gracz może w dowolnym momencie spróbować odgadnąć hasło.
-5. Po rundzie poznaje pełne znaczenie, przykład i ciekawostkę oraz odpowiada na
-   jedno nieblokujące pytanie.
+Pełne podejście obejmuje trzy kategorie, a wyzwanie dzienne jedną. Każda
+kategoria składa się z Łatwego słowa, Trudnego słowa i obowiązkowego finału —
+Kategorii.
 
-Pełne wydanie ma pięć haseł i finał. Hasła dnia mają trzy rundy oraz deterministyczny
-seed lokalnej daty. Porażka pojedynczego hasła nie kończy gry — obniża nakład,
-ale run trwa dalej.
+Przed wyzwaniem słownym gracz widzi część mowy, długość, definicję, cel i jawne
+skutki pominięcia. Może rozpocząć grę, odgadnąć słowo z definicji i pominąć je
+z premią albo pominąć bez odpowiedzi. Podczas właściwej gry nie ma zgadywania
+ani wskazówek: każde zagranie tworzy dokładnie jedno słowo i powiększa wynik.
 
-## Punktacja i wsparcie
+Pokonanie celu odsłania słowo i definicję, a następnie otwiera sklep. Finał
+pokazuje nazwę kategorii oraz obowiązkowe utrudnienie; nie można go pominąć.
+Zwycięstwo odsłania definicję kategorii i zapisuje jej dział w Słowniku.
 
-Wynik rundy ma cztery ograniczone części i nie może przekroczyć 1000 punktów:
+## Metagra
 
-- rozwiązanie: 500;
-- warsztat słowny: 300;
-- wiedza: 100;
-- styl i narzędzia: 100.
+- Zestawy liter zmieniają rozkład liter, rozmiar ręki lub zasady punktacji.
+- Karty językowe premiują prawdziwe części mowy i cechy zapisu.
+- Karty działań są jednorazowe i dokładnie opisują wykonywaną czynność.
+- Ulepszenie wybrane po pierwszej i drugiej kategorii działa do końca podejścia.
+- Warunki odblokowania są widoczne na ekranach Kart językowych i Zestawów liter.
 
-Automatyczne wsparcie analizuje trzy poprzednie rundy i może zmienić się najwyżej
-o jeden poziom pomiędzy hasłami. Nie zmienia rozpoczętego hasła ani jego rozwiązania.
-W ustawieniach można wybrać stały poziom.
+Odblokowania są naliczane wyłącznie w zwykłych, niezseedowanych podejściach.
 
-## Architektura
+## Dane
 
-- `src/editorial/roundEngine.js` — czysta maszyna stanów rundy;
-- `src/editorial/runEngine.js` — run, tryb dzienny, finał i ekonomia;
-- `src/editorial/scoring.js` — punktacja 0–1000;
-- `src/editorial/adaptation.js` — ograniczona adaptacja wsparcia;
-- `src/editorial/content.js` — walidacja treści edukacyjnych;
-- `src/editorial/persistence.js` — wersjonowany zapis `litero_save_v3`;
-- `data/editorial-puzzles.json` — zredagowana pula haseł;
-- `src/main.js` — kontroler i semantyczne widoki aplikacji.
+`public/data/lexicon-v4.json` jest budowany przez `npm run build:lexicon` z
+Morfeusza 2/SGJP oraz list częstości `wordfreq`. Plik przechowuje formę,
+lemat, możliwe części mowy, cechy fleksyjne i zweryfikowane cechy pisowni.
+Informacje o źródłach i licencjach są zapisane także w wygenerowanym pliku.
+Pełne noty znajdują się w [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Stare moduły gry pozostają czasowo w repozytorium jako zabezpieczenie porównawcze
-do czasu zakończenia szerszych playtestów. Nie są ładowane przez nową aplikację.
+## Interfejs i zapis
 
-## Design i dostępność
-
-Interfejs interpretuje język Primary Simplified jako ciepłą, drukarską rozkładówkę:
-papierowe powierzchnie, spokojne szarości oraz czerwone, niebieskie i żółte akcenty.
-Gra oferuje jasny, ciemny i systemowy motyw, pełną obsługę klawiatury, widoczny fokus,
-cele dotykowe minimum 44 px, komunikaty `aria-live` i ograniczenie animacji przez
+Interfejs korzysta z języka Primary Simplified: ciepłych neutralnych teł,
+miękkich warstw, oszczędnych akcentów i systemowego fontu Inter. Obsługuje
+klawiaturę, widoczny fokus, `aria-live`, ciemny motyw, układ mobilny oraz
 `prefers-reduced-motion`.
 
-## Dane i prywatność
-
-Walidacja słów korzysta z lokalnego słownika gier słownych SJP.PL. Aplikacja nie
-wysyła danych gracza. Zapis, preferencje i wyniki dzienne pozostają w `localStorage`.
-Service worker w wersji zgodnej z wydaniem `3.0.0` udostępnia zasoby po pierwszym
-wczytaniu także offline.
+Aktywne podejście korzysta z zapisu `litero_run_v4`, a trwały profil z
+`litero_profile_v1`. Service worker jest rejestrowany wyłącznie w produkcji.

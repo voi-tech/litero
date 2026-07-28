@@ -1,394 +1,658 @@
-import puzzles from '../data/editorial-puzzles.json';
-import { loadDictionary, isValidWord } from './dictionary.js';
-import { localDateString, hashSeed, nextRandom } from './rng.js';
-import { validatePuzzleContent } from './editorial/content.js';
-import { SUPPORT_LEVELS } from './editorial/adaptation.js';
-import { answerKnowledge, attemptSolve, chooseReward, composeWord, continueComposing, createRound } from './editorial/roundEngine.js';
-import { completeRound, continueRun, createEditorialRun } from './editorial/runEngine.js';
-import { scoreEditorialRound } from './editorial/scoring.js';
+import categoryData from '../data/categories-v4.json';
+import { buildGameCategories, validateGameCategories } from './content.js';
 import {
-  clearEditorialRun, loadEditorialRun, loadPreferences, saveEditorialRun,
-  EDITORIAL_SAVE_KEY,
-} from './editorial/persistence.js';
+  chooseUpgrade,
+  closeShop,
+  completeReveal,
+  createRun,
+  enterCurrentChallenge,
+  getCompletedCategoryResult,
+  playValidWord,
+  skipByGuess,
+  skipWithoutGuess,
+} from './litero-v4.js';
+import { commitCompletedCategory } from './profile.js';
+import {
+  clearRunV4,
+  loadProfile,
+  loadRunV4,
+  saveProfile,
+  saveRunV4,
+} from './v4-persistence.js';
+import { getLexiconEntry, loadLexicon } from './lexicon.js';
+import { buildPlayableHand, refillPlayableHand } from './v4-letters.js';
+import { LETTER_VALUES, scoreWord } from './v4-scoring.js';
+import { LANGUAGE_CARDS, ACTION_CARDS, updateUnlockProgress } from './language-cards.js';
+import {
+  LETTER_SETS,
+  getLetterSetRules,
+  updateLetterSetProgress,
+} from './letter-sets.js';
+import { buyOffer, createShop, getInterest, rerollShop } from './v4-shop.js';
+import { hashSeed, localDateString, nextRandom } from './rng.js';
 
-const OLD_SAVE_KEY = 'litero_save_v2';
-const app = document.getElementById('app-main');
-const liveRegion = document.getElementById('live-region');
+const app = document.querySelector('#app-main');
+const live = document.querySelector('#live-region');
+const allCategories = buildGameCategories(categoryData.categories);
+const POLISH_LETTERS = new Set(['Ą', 'Ć', 'Ę', 'Ł', 'Ń', 'Ó', 'Ś', 'Ź', 'Ż']);
+const VOWELS = new Set(['A', 'Ą', 'E', 'Ę', 'I', 'O', 'Ó', 'U', 'Y']);
+const DIFFICULTIES = {
+  spokojny: { name: 'Spokojny', multiplier: 0.85 },
+  standardowy: { name: 'Standardowy', multiplier: 1 },
+  wymagajacy: { name: 'Wymagający', multiplier: 1.15 },
+};
+
+let profile = loadProfile();
 let run = null;
-let round = null;
+let lexiconEntries = [];
 let selectedIndices = [];
-let ready = false;
-let preferences = { theme: 'auto', supportMode: 'auto', tutorialSeen: false, ...loadPreferences() };
+let view = 'start';
+let setup = { difficulty: 'standardowy', letterSetId: 'standardowy' };
 
-document.documentElement.dataset.theme = preferences.theme;
+applyTheme();
 bindShell();
 bootstrap();
 
 async function bootstrap() {
-  renderLoading();
-  registerServiceWorker();
+  app.innerHTML = loadingView();
   try {
-    const dictionary = await loadDictionary();
-    const validation = validatePuzzleContent(puzzles, dictionary);
-    if (!validation.valid) throw new Error(validation.errors.join('\n'));
-    ready = true;
-    handleOldSave();
+    const contentCheck = validateGameCategories(allCategories);
+    if (!contentCheck.valid) throw new Error(contentCheck.errors.join('\n'));
+    const payload = await loadLexicon();
+    lexiconEntries = payload.entries;
     renderStart();
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
+    }
   } catch (error) {
-    renderLoadError(error);
+    app.innerHTML = `<section class="centered card"><p class="overline">Błąd danych</p><h1>Nie udało się przygotować gry</h1><p>${escapeHTML(error.message)}</p><button class="button primary" id="retry">Spróbuj ponownie</button></section>`;
+    document.querySelector('#retry')?.addEventListener('click', bootstrap);
   }
 }
 
 function bindShell() {
-  const rulesDialog = document.getElementById('rules-dialog');
-  document.getElementById('rules-button')?.addEventListener('click', () => rulesDialog.showModal());
-  document.getElementById('theme-button')?.addEventListener('click', cycleTheme);
-  document.querySelector('.brand')?.addEventListener('click', event => {
-    event.preventDefault();
-    renderStart();
+  document.querySelector('#home-button')?.addEventListener('click', renderStart);
+  document.querySelector('#dictionary-button')?.addEventListener('click', renderDictionary);
+  document.querySelector('#cards-button')?.addEventListener('click', renderCards);
+  document.querySelector('#sets-button')?.addEventListener('click', renderSets);
+  document.querySelector('#rules-button')?.addEventListener('click', () => {
+    document.querySelector('#rules-dialog')?.showModal();
   });
+  document.querySelector('#theme-button')?.addEventListener('click', cycleTheme);
 }
 
-function handleOldSave() {
-  try {
-    if (localStorage.getItem(OLD_SAVE_KEY) && !localStorage.getItem(EDITORIAL_SAVE_KEY)) {
-      document.getElementById('migration-dialog')?.showModal();
-      localStorage.removeItem(OLD_SAVE_KEY);
-    }
-  } catch { /* pamięć jest opcjonalna */ }
+function applyTheme() {
+  document.documentElement.dataset.theme = profile.preferences?.theme ?? 'auto';
 }
 
 function cycleTheme() {
-  const themes = ['auto', 'light', 'dark'];
-  const next = themes[(themes.indexOf(preferences.theme) + 1) % themes.length];
-  preferences = { ...preferences, theme: next };
-  document.documentElement.dataset.theme = next;
-  persist();
-  announce(`Motyw: ${next === 'auto' ? 'zgodny z systemem' : next === 'light' ? 'jasny' : 'ciemny'}`);
-}
-
-function renderLoading() {
-  app.innerHTML = `<section class="page error-page"><span class="brand__mark" aria-hidden="true">L</span><p class="eyebrow">Przygotowanie wydania</p><h1>Wczytujemy słownik…</h1><p class="lede">To może potrwać chwilę przy pierwszym uruchomieniu.</p></section>`;
-}
-
-function renderLoadError(error) {
-  app.innerHTML = `<section class="page error-page"><span class="brand__mark" aria-hidden="true">!</span><p class="eyebrow">Nie udało się otworzyć redakcji</p><h1>Brakuje słownika lub treści</h1><p class="lede">${escapeHTML(error.message || 'Nieznany błąd ładowania.')}</p><button class="button button--primary" id="retry-load">Spróbuj ponownie</button></section>`;
-  document.getElementById('retry-load')?.addEventListener('click', bootstrap);
+  const values = ['auto', 'light', 'dark'];
+  const current = profile.preferences?.theme ?? 'auto';
+  const next = values[(values.indexOf(current) + 1) % values.length];
+  profile = {
+    ...profile,
+    preferences: { ...(profile.preferences ?? {}), theme: next },
+  };
+  saveProfile(profile);
+  applyTheme();
+  announce(`Motyw: ${next === 'auto' ? 'systemowy' : next === 'light' ? 'jasny' : 'ciemny'}`);
 }
 
 function renderStart() {
-  const saved = loadEditorialRun();
-  const canContinue = saved && !saved.incompatible && saved.phase !== 'complete';
-  const tutorial = !preferences.tutorialSeen;
-  app.innerHTML = `<section class="page">
-    <div class="start-grid">
-      <article class="cover">
-        <p class="eyebrow">Wydanie pierwsze • gra edukacyjna 7+</p>
-        <h1 class="display">Redakcja<br>słów</h1>
-        <div class="rule"></div>
-        <p class="lede">Układaj słowa, zdobywaj wskazówki i odkrywaj pojęcia. Każde rozwiązanie kończy się krótką porcją wiedzy.</p>
-        <div class="button-row">
-          <button class="button button--primary" id="start-normal" ${ready ? '' : 'disabled'}>Nowe wydanie</button>
-          <button class="button button--yellow" id="start-daily" ${ready ? '' : 'disabled'}>Hasła dnia</button>
-          ${canContinue ? '<button class="button button--blue" id="continue-run">Kontynuuj</button>' : ''}
-        </div>
-      </article>
-      <aside class="start-panel">
-        ${tutorial ? `<article class="paper-card"><p class="eyebrow">Pierwsza wizyta</p><h2>Zacznij od próby</h2><p>Jedno prowadzone hasło pokaże wszystkie decyzje bez ryzyka porażki.</p><button class="button button--blue button--wide" id="start-tutorial">Samouczek</button></article>` : ''}
-        <article class="paper-card mode-card"><span class="mode-card__number">6</span><div><h2>Pełne wydanie</h2><p>Pięć haseł i finał. Około 12–20 minut.</p></div></article>
-        <article class="paper-card mode-card"><span class="mode-card__number">3</span><div><h2>Hasła dnia</h2><p>Ta sama łamigłówka dla wszystkich. Około 5–8 minut.</p></div></article>
-        <article class="paper-card">
-          <label for="support-mode"><strong>Poziom wskazówek</strong></label>
-          <select class="text-input button--wide" id="support-mode">
-            <option value="auto" ${preferences.supportMode === 'auto' ? 'selected' : ''}>Automatyczny</option>
-            <option value="fixed" ${preferences.supportMode === 'fixed' ? 'selected' : ''}>Stałe wsparcie</option>
-          </select>
-          <p><small>Automatyczny poziom zmienia się najwyżej o jeden stopień między hasłami.</small></p>
-        </article>
-      </aside>
-    </div>
-  </section>`;
-  bindStartEvents(saved);
-  focusMain();
-}
-
-function bindStartEvents(saved) {
-  document.getElementById('support-mode')?.addEventListener('change', event => {
-    preferences = { ...preferences, supportMode: event.target.value };
-    persist();
-  });
-  document.getElementById('start-normal')?.addEventListener('click', () => startRun('normal'));
-  document.getElementById('start-daily')?.addEventListener('click', () => startRun('daily'));
-  document.getElementById('start-tutorial')?.addEventListener('click', startTutorial);
-  document.getElementById('continue-run')?.addEventListener('click', () => {
-    run = saved;
-    if (run.phase === 'between') renderBetween();
-    else if (run.activeRound) {
-      round = run.activeRound;
-      selectedIndices = [];
-      renderRound();
-    } else startCurrentRound();
-  });
-}
-
-function startRun(mode) {
-  clearEditorialRun();
-  const seed = mode === 'daily' ? localDateString() : `${Date.now()}:${Math.random()}`;
-  run = createEditorialRun({ puzzles, mode, seed, supportMode: preferences.supportMode });
-  startCurrentRound();
-}
-
-function startTutorial() {
-  run = createEditorialRun({ puzzles: [puzzles.find(item => item.id === 'przyroda-rzeka')], mode: 'tutorial', seed: 'tutorial', supportMode: 'fixed' });
-  run.isTutorial = true;
-  run.supportProfile.level = 3;
-  startCurrentRound();
-}
-
-function makeHand(puzzle, seed) {
-  const target = [...new Set([...puzzle.word])].slice(0, 6);
-  const fillers = ['A', 'E', 'I', 'K', 'O', 'T', 'R', 'S'];
-  const hand = [...target];
-  for (const letter of fillers) if (hand.length < 8 && !hand.includes(letter)) hand.push(letter);
-  let state = hashSeed(seed);
-  for (let index = hand.length - 1; index > 0; index--) {
-    const random = nextRandom(state); state = random.state;
-    const targetIndex = Math.floor(random.value * (index + 1));
-    [hand[index], hand[targetIndex]] = [hand[targetIndex], hand[index]];
-  }
-  return hand;
-}
-
-function applyToolsToRound(nextRound) {
-  const tools = [...run.tools];
-  if (tools.includes('zakladka')) nextRound.turnsLeft += 1;
-  if (tools.includes('korektor')) nextRound.attemptsLeft += 1;
-  if (tools.includes('lupa')) nextRound.hintsUsed = -1;
-  if (tools.includes('slownik')) {
-    nextRound.revealed.add(0);
-    nextRound.hintsUsed += 1;
-  }
-  run.tools = [];
-  return nextRound;
-}
-
-function startCurrentRound() {
-  run = continueRun(run);
-  const puzzle = run.puzzles[run.currentIndex];
-  if (!puzzle) return renderEnd();
-  round = applyToolsToRound(createRound({
-    puzzle,
-    hand: makeHand(puzzle, `${run.seed}:${run.currentIndex}`),
-    supportLevel: run.supportProfile.level,
-  }));
-  if (run.currentIndex === run.puzzles.length - 1 && run.results.length) {
-    const remembered = run.results.filter(item => item.knowledgeCorrect).length;
-    for (let index = 0; index < Math.min(remembered, 2); index++) round.revealed.add(index);
-    round.stylePoints += remembered * 10;
-  }
+  view = 'start';
+  run = null;
   selectedIndices = [];
-  persist();
-  renderRound();
-}
-
-function renderRound() {
-  const puzzle = round.puzzle;
-  const support = SUPPORT_LEVELS[round.supportLevel];
-  const definition = puzzle.definitions[support.definition];
-  const progress = run.puzzles.map((_, index) => `<span class="${index < run.currentIndex ? 'done' : index === run.currentIndex ? 'current' : ''}"></span>`).join('');
-  const roundLabel = run.isTutorial ? 'Samouczek' : run.currentIndex === run.puzzles.length - 1 ? 'Finał wydania' : escapeHTML(puzzle.category);
-  app.innerHTML = `<section class="page">
-    <header class="page-header"><div><p class="eyebrow">${roundLabel} • hasło ${run.currentIndex + 1}/${run.puzzles.length}</p><h1>${run.isTutorial ? 'Próba redakcyjna' : 'Odkryj znaczenie'}</h1><div class="progress-strip" role="progressbar" aria-label="Postęp wydania" aria-valuemin="0" aria-valuemax="${run.puzzles.length}" aria-valuenow="${run.currentIndex + 1}">${progress}</div></div><div class="stats-line"><span>Atrament <strong>${run.ink}</strong></span><span>Nakład <strong>${run.circulation}%</strong></span></div></header>
-    <div class="game-layout">
-      <div>
-        <article class="paper-card definition-card"><p class="eyebrow">Definicja</p><blockquote>${escapeHTML(definition)}</blockquote><div class="masked-word" role="group" aria-label="Hasło ma ${puzzle.word.length} liter">${renderMaskedWord()}</div></article>
-        ${renderPhasePanel()}
+  const saved = loadRunV4();
+  const unlockedSets = Object.values(LETTER_SETS)
+    .filter(item => profile.unlockedLetterSetIds.includes(item.id));
+  app.innerHTML = `<section class="start-layout">
+    <div class="hero">
+      <p class="overline">Polska gra słowna</p>
+      <h1>Znajdź słowa.<br><span>Poznaj znaczenia.</span></h1>
+      <p class="lead">Układaj poprawne słowa z liter, rozwijaj wynik i odkrywaj działy trwałego Słownika. Jedno podejście to trzy kategorie.</p>
+      <div class="start-actions">
+        <button class="button primary" id="start-full">Pełna gra</button>
+        <button class="button blue" id="start-daily">Wyzwanie dzienne</button>
+        ${saved ? '<button class="button" id="continue-run">Kontynuuj</button>' : ''}
       </div>
-      <aside class="round-sidebar">
-        <article class="paper-card"><h2>Stan łamu</h2><div class="metric"><span>Tury</span><strong>${round.turnsLeft}</strong></div><div class="metric"><span>Próby</span><strong>${round.attemptsLeft}</strong></div><div class="metric"><span>Warsztat</span><strong>${round.wordCraftPoints}</strong></div></article>
-        <article class="paper-card"><p class="eyebrow">Poziom wsparcia</p><h3>${capitalize(support.id)}</h3><p>Poziom zmienia się tylko między hasłami.</p></article>
-        ${run.isTutorial ? `<article class="paper-card"><p class="eyebrow">Podpowiedź samouczka</p><p>${tutorialHint()}</p></article>` : ''}
-      </aside>
     </div>
+    <aside class="setup card">
+      <p class="overline">Ustawienia podejścia</p>
+      <label>Poziom trudności
+        <select id="difficulty">
+          ${Object.entries(DIFFICULTIES).map(([id, item]) => `<option value="${id}" ${setup.difficulty === id ? 'selected' : ''}>${item.name}</option>`).join('')}
+        </select>
+      </label>
+      <label>Zestaw liter
+        <select id="letter-set">
+          ${unlockedSets.map(item => `<option value="${item.id}" ${setup.letterSetId === item.id ? 'selected' : ''}>${item.name}</option>`).join('')}
+        </select>
+      </label>
+      <div class="start-facts">
+        <div><strong>3</strong><span>kategorie</span></div>
+        <div><strong>9</strong><span>wyzwań</span></div>
+        <div><strong>1</strong><span>trwały stół</span></div>
+      </div>
+    </aside>
   </section>`;
-  bindRoundEvents();
+  document.querySelector('#difficulty')?.addEventListener('change', event => {
+    setup.difficulty = event.target.value;
+  });
+  document.querySelector('#letter-set')?.addEventListener('change', event => {
+    setup.letterSetId = event.target.value;
+  });
+  document.querySelector('#start-full')?.addEventListener('click', () => startRun('normal'));
+  document.querySelector('#start-daily')?.addEventListener('click', () => startRun('daily'));
+  document.querySelector('#continue-run')?.addEventListener('click', () => {
+    run = saved;
+    renderRun();
+  });
   focusMain();
 }
 
-function renderMaskedWord() {
-  return [...round.puzzle.word].map((letter, index) => `<span class="masked-letter">${round.revealed.has(index) || round.phase === 'learn' ? escapeHTML(letter) : '<span aria-hidden="true">·</span>'}</span>`).join('');
-}
-
-function renderPhasePanel() {
-  if (round.phase === 'compose') {
-    const word = selectedIndices.map(index => round.hand[index]).join('');
-    return `<section class="composer" aria-labelledby="compose-title"><p class="eyebrow">Kaszta liter</p><h2 id="compose-title">Ułóż słowo</h2><div class="selected-word" id="selected-word">${word || '—'}</div><div class="letter-rack">${round.hand.map((letter, index) => `<button class="letter-tile" type="button" data-letter-index="${index}" aria-pressed="${selectedIndices.includes(index)}" aria-label="Litera ${letter}">${letter}</button>`).join('')}</div><div class="button-row"><button class="button button--quiet" id="clear-word">Wyczyść</button><button class="button button--primary" id="play-word" ${word.length < 2 ? 'disabled' : ''}>Złóż słowo</button><button class="button button--blue" id="open-guess">Odgadnij hasło</button></div><p id="word-message" role="status"></p></section>`;
-  }
-  if (round.phase === 'reward') {
-    return `<section class="composer"><p class="eyebrow">Korekta przyjęta</p><h2>Wybierz wskazówkę</h2><div class="reward-grid"><button class="button reward" data-reward="reveal-consonant"><strong>Spółgłoska</strong>Odsłoń pierwszą ukrytą spółgłoskę.</button><button class="button reward" data-reward="buy-vowel"><strong>Samogłoska</strong>Odsłoń pierwszą ukrytą samogłoskę.</button><button class="button reward" data-reward="locate-letter"><strong>Pozycja</strong>Odkryj kolejną literę hasła.</button><button class="button reward" data-reward="extra-attempt"><strong>Dodatkowa próba</strong>Zyskaj jeszcze jedną odpowiedź.</button></div></section>`;
-  }
-  if (round.phase === 'solve') return renderGuessPanel(true);
-  return '';
-}
-
-function renderGuessPanel(canContinue) {
-  return `<section class="composer"><p class="eyebrow">Decyzja redaktora</p><h2>Jak brzmi hasło?</h2><form class="guess-row" id="guess-form"><label class="live-region" for="guess-input">Odpowiedź</label><input class="text-input" id="guess-input" autocomplete="off" maxlength="32" required><button class="button button--primary">Sprawdź</button></form>${canContinue ? '<button class="button button--quiet" id="continue-compose">Ułóż kolejne słowo</button>' : ''}</section>`;
-}
-
-function bindRoundEvents() {
-  document.querySelectorAll('[data-letter-index]').forEach(button => button.addEventListener('click', () => {
-    const index = Number(button.dataset.letterIndex);
-    selectedIndices = selectedIndices.includes(index) ? selectedIndices.filter(item => item !== index) : [...selectedIndices, index];
-    renderRound();
-  }));
-  document.getElementById('clear-word')?.addEventListener('click', () => { selectedIndices = []; renderRound(); });
-  document.getElementById('play-word')?.addEventListener('click', playSelectedWord);
-  document.getElementById('open-guess')?.addEventListener('click', () => {
-    round = { ...round, phase: 'solve' }; renderRound(); document.getElementById('guess-input')?.focus();
-  });
-  document.querySelectorAll('[data-reward]').forEach(button => button.addEventListener('click', () => {
-    round = chooseReward(round, button.dataset.reward); persist(); renderRound(); announce('Wskazówka została dodana.');
-  }));
-  document.getElementById('continue-compose')?.addEventListener('click', () => { round = continueComposing(round); renderRound(); });
-  document.getElementById('guess-form')?.addEventListener('submit', event => {
-    event.preventDefault();
-    const previousAttempts = round.attemptsLeft;
-    round = attemptSolve(round, document.getElementById('guess-input').value);
-    persist();
-    if (round.phase === 'learn') renderLearn();
-    else { renderRound(); announce(`To nie jest hasło. Pozostało prób: ${previousAttempts - 1}.`); }
-  });
-  document.addEventListener('keydown', handleRoundKeyboard, { once: true });
-}
-
-function handleRoundKeyboard(event) {
-  if (round?.phase !== 'compose' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
-  if (event.key === 'Escape') { selectedIndices = []; renderRound(); }
-  if (event.key === 'Backspace') { event.preventDefault(); selectedIndices.pop(); renderRound(); }
-  if (/^[a-ząćęłńóśźż]$/i.test(event.key)) {
-    const letter = event.key.toLocaleUpperCase('pl-PL');
-    const index = round.hand.findIndex((item, position) => item === letter && !selectedIndices.includes(position));
-    if (index >= 0) { selectedIndices.push(index); renderRound(); }
-  }
-}
-
-function playSelectedWord() {
-  const word = selectedIndices.map(index => round.hand[index]).join('');
-  if (!isValidWord(word)) {
-    const message = document.getElementById('word-message');
-    if (message) message.textContent = 'Tego słowa nie ma w słowniku. Spróbuj innego układu.';
-    announce('Słowo nie zostało przyjęte.');
-    return;
-  }
-  const related = round.puzzle.synonyms.some(item => item.toLocaleUpperCase('pl-PL') === word) || round.puzzle.word.includes(word);
-  round = composeWord(round, { word, valid: true, categoryRelated: related });
-  selectedIndices = [];
-  persist(); renderRound(); announce(`Przyjęto słowo ${word}. Wybierz wskazówkę.`);
-}
-
-function renderLearn() {
-  const puzzle = round.puzzle;
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">${round.solved ? 'Hasło rozwiązane' : 'Poznaj odpowiedź'}</p><h1 class="knowledge__word">${escapeHTML(puzzle.word)}</h1><p class="lede">${escapeHTML(puzzle.definitions.full)}</p><blockquote class="quote">${escapeHTML(puzzle.example)}</blockquote><article class="paper-card"><h2>Czy wiesz?</h2><p>${escapeHTML(puzzle.curiosity)}</p><p><strong>Synonim:</strong> ${escapeHTML(puzzle.synonyms.join(', '))}</p></article><section><p class="eyebrow">Jedno pytanie na utrwalenie</p><h2>${escapeHTML(puzzle.knowledgeQuestion.prompt)}</h2><div class="knowledge-options">${puzzle.knowledgeQuestion.options.map((option, index) => `<button class="button" data-answer="${index}">${escapeHTML(option)}</button>`).join('')}</div></section></section>`;
-  document.querySelectorAll('[data-answer]').forEach(button => button.addEventListener('click', () => finishKnowledge(Number(button.dataset.answer))));
-  focusMain();
-}
-
-function finishKnowledge(answerIndex) {
-  round = answerKnowledge(round, answerIndex);
-  const result = roundResult();
-  const score = scoreEditorialRound(result);
-  run = completeRound(run, result);
-  persist();
-  if (run.isTutorial) {
-    preferences = { ...preferences, tutorialSeen: true };
-    clearEditorialRun(); persist();
-    return renderTutorialComplete(score);
-  }
-  if (run.phase === 'complete') renderEnd();
-  else renderBetween(score, round.knowledgeCorrect);
-}
-
-function roundResult() {
-  return {
-    puzzleId: round.puzzle.id,
-    word: round.puzzle.word,
-    solved: Boolean(round.solved),
-    turnsUsed: round.maxTurns - round.turnsLeft,
-    maxTurns: round.maxTurns,
-    hintsUsed: Math.max(0, round.hintsUsed),
-    wrongGuesses: round.wrongGuesses,
-    wordCraftPoints: round.wordCraftPoints,
-    knowledgeCorrect: Boolean(round.knowledgeCorrect),
-    stylePoints: round.stylePoints,
+function deterministicRandom(seedText) {
+  let state = hashSeed(seedText);
+  return () => {
+    const next = nextRandom(state);
+    state = next.state;
+    return next.value;
   };
 }
 
-function renderBetween(score = run.results.at(-1)?.score, knowledgeCorrect = run.results.at(-1)?.knowledgeCorrect) {
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Koniec łamu</p><h1>${knowledgeCorrect ? 'Wiedza zostaje.' : 'Następnym razem będzie łatwiej.'}</h1><div class="score-grid"><article class="paper-card"><span>Rozwiązanie</span><strong>${score.solution}</strong></article><article class="paper-card"><span>Warsztat</span><strong>${score.craft}</strong></article><article class="paper-card"><span>Wiedza</span><strong>${score.knowledge}</strong></article><article class="paper-card"><span>Styl</span><strong>${score.style}</strong></article></div><article class="paper-card"><p class="eyebrow">Skład narzędzi • atrament: ${run.ink}</p><h2>Przygotuj następne hasło</h2><div class="tool-grid">${renderTools()}</div></article><button class="button button--primary button--wide" id="next-round">Następne hasło</button></section>`;
-  document.querySelectorAll('[data-tool]').forEach(button => button.addEventListener('click', () => buyTool(button.dataset.tool, Number(button.dataset.cost))));
-  document.getElementById('next-round')?.addEventListener('click', startCurrentRound);
+function shuffled(items, seed) {
+  const result = [...items];
+  const random = deterministicRandom(seed);
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(random() * (index + 1));
+    [result[index], result[target]] = [result[target], result[index]];
+  }
+  return result;
+}
+
+function pickCategoryWords(categories, seed) {
+  return categories.map((category, index) => {
+    const random = deterministicRandom(`${seed}:${category.id}:${index}`);
+    const easy = category.easyWords[Math.floor(random() * category.easyWords.length)];
+    const hard = category.hardWords[Math.floor(random() * category.hardWords.length)];
+    return { ...category, easyWords: [easy], hardWords: [hard] };
+  });
+}
+
+function targetsFor(count, multiplier) {
+  const slice = values => values.slice(0, count).map(value => Math.round(value * multiplier));
+  return {
+    easy: slice([120, 200, 280]),
+    hard: slice([240, 400, 560]),
+    category: slice([420, 690, 960]),
+  };
+}
+
+function startRun(mode) {
+  const seed = mode === 'daily' ? localDateString() : `${Date.now()}:${Math.random()}`;
+  const count = mode === 'daily' ? 1 : 3;
+  const categories = pickCategoryWords(shuffled(allCategories, seed).slice(0, count), seed);
+  run = createRun({
+    categories,
+    seed,
+    mode,
+    difficulty: setup.difficulty,
+    targets: targetsFor(count, DIFFICULTIES[setup.difficulty].multiplier),
+  });
+  run.letterSetId = setup.letterSetId;
+  run.languageCardIds = [];
+  run.actionCardIds = [];
+  run.previousWord = null;
+  run.aliterationStreak = 0;
+  run.maxWordLengthInCategory = 0;
+  clearRunV4();
+  persistRun();
+  renderRun();
+}
+
+function renderRun() {
+  if (!run) return renderStart();
+  if (run.phase === 'definition-select') renderDefinitionSelect();
+  else if (run.phase === 'playing') renderTable();
+  else if (run.phase === 'word-reveal') renderWordReveal();
+  else if (run.phase === 'category-reveal') renderCategoryReveal();
+  else if (run.phase === 'shop') renderShop();
+  else if (run.phase === 'upgrade') renderUpgrade();
+  else if (run.phase === 'victory') renderEnd(true);
+  else if (run.phase === 'defeat') renderEnd(false);
+}
+
+function runProgress() {
+  return run.categories.map((category, categoryIndex) => {
+    const active = categoryIndex === run.categoryIndex;
+    const done = categoryIndex < run.categoryIndex || (active && run.categoryWon);
+    return `<li class="${active ? 'active' : ''} ${done ? 'done' : ''}">
+      <span>${categoryIndex + 1}</span><div><strong>${escapeHTML(category.name)}</strong><small>${done ? 'odkryta' : active ? run.challenge.label : 'ukryta'}</small></div>
+    </li>`;
+  }).join('');
+}
+
+function tableShell(center, options = {}) {
+  const category = run.categories[run.categoryIndex];
+  return `<section class="table-page">
+    <header class="run-header">
+      <div><p class="overline">${run.mode === 'daily' ? 'Wyzwanie dzienne' : `Kategoria ${run.categoryIndex + 1} z ${run.categories.length}`}</p><h1>${escapeHTML(category.name)}</h1></div>
+      <div class="run-money"><span>Atrament</span><strong>${run.ink}</strong></div>
+    </header>
+    <div class="game-grid">
+      <aside class="progress-panel card"><h2>Postęp</h2><ol class="category-progress">${runProgress()}</ol>
+        <div class="compact-list"><span>Zestaw</span><strong>${escapeHTML(LETTER_SETS[run.letterSetId]?.name ?? 'Standardowy')}</strong><span>Ulepszenia</span><strong>${run.upgrades.length}</strong></div>
+      </aside>
+      <div class="table-center">${center}</div>
+      <aside class="cards-panel card">
+        <div class="panel-heading"><h2>Karty językowe</h2><span>${run.languageCardIds.length}/5</span></div>
+        <div class="owned-cards">${run.languageCardIds.length ? run.languageCardIds.map(id => miniCard(LANGUAGE_CARDS[id])).join('') : '<p class="muted">Kupisz je po zwycięskim wyzwaniu.</p>'}</div>
+        <div class="panel-heading"><h2>Karty działań</h2><span>${run.actionCardIds.length}/3</span></div>
+        <div class="owned-cards">${run.actionCardIds.length ? run.actionCardIds.map(id => miniCard(ACTION_CARDS[id], true)).join('') : '<p class="muted">Brak kart działań.</p>'}</div>
+      </aside>
+    </div>
+  </section>`;
+}
+
+function renderDefinitionSelect() {
+  selectedIndices = [];
+  const challenge = run.challenge;
+  const isCategory = challenge.kind === 'category';
+  const content = `<article class="challenge card ${isCategory ? 'boss-card' : ''}">
+    <div class="challenge-top"><span class="badge ${isCategory ? 'red' : challenge.kind === 'hard' ? 'yellow' : 'blue'}">${challenge.label}</span><strong>Cel: ${challenge.targetScore} pkt</strong></div>
+    <h2>${isCategory ? escapeHTML(challenge.categoryName) : `${capitalize(challenge.partOfSpeech)} · ${challenge.letterCount} ${letterWord(challenge.letterCount)}`}</h2>
+    ${isCategory
+      ? `<p class="hidden-definition">Definicja kategorii zostanie odsłonięta po zwycięstwie.</p>
+        <div class="consequence negative"><strong>${escapeHTML(challenge.bossModifier.label)}</strong><span>${escapeHTML(challenge.bossModifier.description)}</span></div>`
+      : `<blockquote>${escapeHTML(challenge.definition)}</blockquote>
+        <div class="skip-grid">
+          <form id="guess-form" class="consequence positive">
+            <strong>Odgadnij i pomiń</strong><span>${escapeHTML(challenge.positiveEffect.label)}</span>
+            <label class="sr-only" for="guess">Odpowiedź</label><div class="inline-form"><input id="guess" autocomplete="off" placeholder="Wpisz słowo"><button class="button small blue">Sprawdź</button></div>
+          </form>
+          <div class="consequence negative"><strong>Pomiń bez odpowiedzi</strong><span>${escapeHTML(challenge.negativeEffect.label)}</span><button class="text-button" id="skip">Pomiń</button></div>
+        </div>`}
+    <button class="button primary wide" id="enter-challenge">${isCategory ? 'Rozpocznij kategorię' : 'Rozpocznij wyzwanie'}</button>
+  </article>`;
+  app.innerHTML = tableShell(content);
+  document.querySelector('#enter-challenge')?.addEventListener('click', beginChallenge);
+  document.querySelector('#skip')?.addEventListener('click', () => {
+    run = skipWithoutGuess(run);
+    persistRun();
+    announce(`Wyzwanie pominięte. ${challenge.negativeEffect.label}.`);
+    renderRun();
+  });
+  document.querySelector('#guess-form')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const answer = document.querySelector('#guess').value;
+    const before = run.discoveries.length;
+    run = skipByGuess(run, answer);
+    persistRun();
+    announce(run.discoveries.length > before
+      ? `Poprawna odpowiedź. ${challenge.positiveEffect.label}.`
+      : `Błędna odpowiedź. ${challenge.negativeEffect.label}.`);
+    renderRun();
+  });
   focusMain();
 }
 
-function renderTools() {
-  const tools = [
-    ['zakladka', 3, 'Zakładka', '+1 tura w następnym haśle'],
-    ['korektor', 3, 'Korektor', '+1 próba rozwiązania'],
-    ['slownik', 4, 'Słownik', 'Pierwsza litera od razu odkryta'],
-    ['lupa', 2, 'Lupa', 'Pierwsza wskazówka nie obniża wyniku'],
-  ];
-  return tools.map(([id, cost, name, description]) => `<button class="button reward" data-tool="${id}" data-cost="${cost}" ${run.ink < cost || run.tools.includes(id) ? 'disabled' : ''}><strong>${name} • ${cost}</strong>${description}</button>`).join('');
+function beginChallenge() {
+  const setRules = getLetterSetRules(run.letterSetId);
+  run = enterCurrentChallenge(run, setRules);
+  const random = deterministicRandom(`${run.seed}:hand:${run.categoryIndex}:${run.challengeIndex}`);
+  run.hand = buildPlayableHand(lexiconEntries, { ...setRules, handSize: run.handSize }, random).hand;
+  run.wordsPlayedInChallenge = 0;
+  run.doubleNext = false;
+  selectedIndices = [];
+  persistRun();
+  renderRun();
 }
 
-function buyTool(id, cost) {
-  if (run.ink < cost || run.tools.includes(id)) return;
-  run = { ...run, ink: run.ink - cost, tools: [...run.tools, id] };
-  persist(); renderBetween(); announce('Narzędzie dodane do następnego hasła.');
-}
-
-function renderEnd() {
-  clearEditorialRun();
-  const solved = run.results.filter(result => result.solved).length;
-  const learned = run.results.filter(result => result.knowledgeCorrect).length;
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Wydanie zamknięte</p><h1>${run.mode === 'daily' ? 'Hasła dnia gotowe' : 'Redakcja zakończona'}</h1><div class="result-score">${run.score}</div><p class="lede">punktów za całe wydanie</p><div class="score-grid"><article class="paper-card"><span>Rozwiązane</span><strong>${solved}/${run.puzzles.length}</strong></article><article class="paper-card"><span>Utrwalone</span><strong>${learned}</strong></article><article class="paper-card"><span>Nakład</span><strong>${run.circulation}%</strong></article><article class="paper-card"><span>Poziom</span><strong>${run.supportProfile.level + 1}</strong></article></div><div class="button-row"><button class="button button--primary" id="home-button">Nowe wydanie</button>${run.mode === 'daily' ? '<button class="button button--blue" id="share-button">Kopiuj wynik</button>' : ''}</div></section>`;
-  document.getElementById('home-button')?.addEventListener('click', renderStart);
-  document.getElementById('share-button')?.addEventListener('click', shareResult);
-  focusMain();
-}
-
-function renderTutorialComplete(score) {
-  app.innerHTML = `<section class="page knowledge"><p class="eyebrow">Próba ukończona</p><h1>Masz legitymację redaktora!</h1><p class="lede">Wiesz już, jak układać słowa, wybierać wskazówki, odgadywać hasła i utrwalać ich znaczenia.</p><div class="result-score">${score.total}</div><button class="button button--primary" id="tutorial-home">Przejdź do gry</button></section>`;
-  document.getElementById('tutorial-home')?.addEventListener('click', renderStart);
-  focusMain();
-}
-
-async function shareResult() {
-  const marks = run.results.map(result => result.solved ? '■' : '□').join('');
-  const text = `Litero ${localDateString()} ${marks} • ${run.score} pkt • bez spoilerów`;
-  try { await navigator.clipboard.writeText(text); announce('Wynik skopiowany.'); }
-  catch { announce('Nie udało się skopiować wyniku.'); }
-}
-
-function tutorialHint() {
-  if (round.phase === 'compose') return 'Kliknij litery, aby ułożyć poprawne słowo. Klawiatura również działa.';
-  if (round.phase === 'reward') return 'Każde przyjęte słowo pozwala wybrać informację o haśle.';
-  return 'Możesz już zgadywać albo wrócić do układania słów.';
-}
-
-function persist() {
-  if (run && run.phase !== 'complete') saveEditorialRun({ ...run, activeRound: round }, preferences);
-  else {
-    try { localStorage.setItem('litero_preferences_v1', JSON.stringify(preferences)); } catch { /* opcjonalne */ }
+function renderTable(focusIndex = null) {
+  const target = run.challenge.targetScore;
+  const percent = Math.min(100, Math.round(run.runningScore / target * 100));
+  const selectedWord = selectedIndices.map(index => run.hand[index]).join('');
+  const center = `<article class="score-card card">
+      <div class="challenge-top"><span class="badge">${run.challenge.label}</span><span>${run.challenge.kind === 'category' ? escapeHTML(run.challenge.categoryName) : `${capitalize(run.challenge.partOfSpeech)} · ${run.challenge.letterCount} ${letterWord(run.challenge.letterCount)}`}</span></div>
+      <div class="score-line"><strong>${run.runningScore}</strong><span>/ ${target} pkt</span></div>
+      <div class="progress-track" role="progressbar" aria-label="Wynik wyzwania" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${run.runningScore}"><span style="width:${percent}%"></span></div>
+      <div class="attempt-stats"><div><strong>${run.playsLeft}</strong><span>zagrania</span></div><div><strong>${run.discardsLeft}</strong><span>odrzucenia</span></div><div><strong>${selectedWord || '—'}</strong><span>wybrane litery</span></div></div>
+    </article>
+    <article class="hand-area" aria-label="Ręka liter">
+      <div class="letter-hand">${run.hand.map((letter, index) => `<button class="letter-tile ${selectedIndices.includes(index) ? 'selected' : ''}" data-letter-index="${index}" aria-pressed="${selectedIndices.includes(index)}" aria-label="Litera ${letter}">${letter}<small>${letterValue(letter)}</small></button>`).join('')}</div>
+      <div class="play-actions"><button class="button" id="discard" ${!selectedIndices.length || run.discardsLeft <= 0 ? 'disabled' : ''}>Odrzuć</button><button class="button primary" id="play" ${selectedWord.length < 2 ? 'disabled' : ''}>Zagraj słowo</button></div>
+      <p class="table-message" id="table-message">Wybierz litery w kolejności. Niepoprawne słowo nie zużywa zagrania.</p>
+    </article>`;
+  app.innerHTML = tableShell(center);
+  document.querySelectorAll('[data-letter-index]').forEach(button => button.addEventListener('click', () => {
+    const index = Number(button.dataset.letterIndex);
+    selectedIndices = selectedIndices.includes(index)
+      ? selectedIndices.filter(item => item !== index)
+      : [...selectedIndices, index];
+    renderTable(index);
+  }));
+  document.querySelector('#play')?.addEventListener('click', playSelection);
+  document.querySelector('#discard')?.addEventListener('click', discardSelection);
+  document.querySelectorAll('[data-action-id]').forEach(button => button.addEventListener('click', () => useAction(button.dataset.actionId)));
+  focusMain(false);
+  if (focusIndex != null) {
+    document.querySelector(`[data-letter-index="${focusIndex}"]`)?.focus();
   }
 }
 
-function registerServiceWorker() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+function adjustedPlayScore(result) {
+  let score = result.score;
+  const upgradeMultiplier = run.upgrades.includes('letter-value') ? 1.25 : 1;
+  score = Math.floor(score * upgradeMultiplier);
+  const boss = run.challenge.kind === 'category' ? run.challenge.bossModifier : null;
+  if (boss?.vowelsGiveNoChips) {
+    const word = selectedIndices.map(index => run.hand[index]).join('');
+    const vowelShare = [...word].filter(letter => VOWELS.has(letter)).length / word.length;
+    score = Math.max(1, Math.floor(score * (1 - vowelShare)));
+  }
+  if (boss?.firstPlayMultiplier && run.wordsPlayedInChallenge === 0) {
+    score = Math.floor(score * boss.firstPlayMultiplier);
+  }
+  return score;
 }
 
-function announce(message) { liveRegion.textContent = ''; requestAnimationFrame(() => { liveRegion.textContent = message; }); }
-function focusMain() { requestAnimationFrame(() => app.focus()); }
-function capitalize(value) { return value.charAt(0).toLocaleUpperCase('pl-PL') + value.slice(1); }
-function escapeHTML(value) { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; }
+function playSelection() {
+  const word = selectedIndices.map(index => run.hand[index]).join('');
+  const entry = getLexiconEntry(word);
+  if (!entry) {
+    announce('Tego słowa nie ma w słowniku. Zagranie nie zostało zużyte.');
+    document.querySelector('#table-message').textContent = 'Tego słowa nie ma w słowniku. Spróbuj innego układu.';
+    return;
+  }
+  const score = scoreWord(entry, {
+    activeCardIds: run.languageCardIds,
+    letterSetId: run.letterSetId,
+    previousWord: run.previousWord,
+    aliterationStreak: run.aliterationStreak,
+    doubleNext: run.doubleNext,
+  });
+  const finalScore = adjustedPlayScore(score);
+  const oldPhase = run.phase;
+  run = playValidWord(run, { ...score, word, score: finalScore });
+  run.previousWord = word;
+  run.aliterationStreak = score.aliterationStreak;
+  run.wordsPlayedInChallenge += 1;
+  run.doubleNext = false;
+  run.maxWordLengthInCategory = Math.max(run.maxWordLengthInCategory ?? 0, [...word].length);
+  updateMetaForWord(entry, score, finalScore);
 
-if (import.meta.env.DEV) window.__litero = { get run() { return run; }, get round() { return round; }, puzzles };
+  const remaining = run.hand.filter((_, index) => !selectedIndices.includes(index));
+  run.hand = refillPlayableHand(
+    remaining,
+    run.handSize,
+    deterministicRandom(`${run.seed}:refill:${run.completedChallenges.length}:${run.playsLeft}:${word}`),
+    getLetterSetRules(run.letterSetId),
+  );
+  selectedIndices = [];
+  if (oldPhase === 'playing' && run.phase !== 'playing' && run.phase !== 'defeat') awardChallenge();
+  persistRun();
+  announce(`${word}: ${finalScore} punktów.`);
+  renderRun();
+}
+
+function updateMetaForWord(entry, score, finalScore) {
+  const letters = [...entry.surface.toLocaleUpperCase('pl-PL')];
+  const vowelCount = letters.filter(letter => VOWELS.has(letter)).length;
+  const event = {
+    mode: run.mode,
+    seeded: run.mode !== 'normal',
+    aliterationStreak: score.aliterationStreak,
+    palindromeLength: entry.spellingTags?.includes('palindrom') ? letters.length : 0,
+    diminutivesPlayed: entry.analyses?.some(item => item.features?.includes('zdrobnienie')) ? 1 : 0,
+    singleWordScore: finalScore,
+  };
+  profile = updateUnlockProgress(profile, event);
+  profile = updateLetterSetProgress(profile, {
+    mode: run.mode,
+    seeded: run.mode !== 'normal',
+    vowelRichWords: vowelCount >= Math.ceil(letters.length / 2) ? 1 : 0,
+    consonantRichWords: letters.length - vowelCount >= Math.ceil(letters.length * 2 / 3) ? 1 : 0,
+    eightLetterWords: letters.length === 8 ? 1 : 0,
+    usedPolishLetters: letters.filter(letter => POLISH_LETTERS.has(letter)),
+  });
+  saveProfile(profile);
+}
+
+function discardSelection() {
+  if (!selectedIndices.length || run.discardsLeft <= 0) return;
+  const remaining = run.hand.filter((_, index) => !selectedIndices.includes(index));
+  run.hand = refillPlayableHand(
+    remaining,
+    run.handSize,
+    Math.random,
+    getLetterSetRules(run.letterSetId),
+  );
+  run.discardsLeft -= 1;
+  selectedIndices = [];
+  persistRun();
+  announce('Litery wymienione.');
+  renderTable();
+}
+
+function useAction(id) {
+  const action = ACTION_CARDS[id];
+  if (!action) return;
+  if (action.effect === 'play') run.playsLeft += action.amount;
+  else if (action.effect === 'discard') run.discardsLeft += action.amount;
+  else if (action.effect === 'double-next') run.doubleNext = true;
+  else if (action.effect === 'draw') {
+    run.hand = refillPlayableHand(
+      run.hand,
+      run.hand.length + action.amount,
+      Math.random,
+      getLetterSetRules(run.letterSetId),
+    );
+  } else if (action.effect === 'exchange') {
+    if (!selectedIndices.length) return announce('Najpierw zaznacz litery do wymiany.');
+    const remaining = run.hand.filter((_, index) => !selectedIndices.slice(0, action.amount).includes(index));
+    run.hand = refillPlayableHand(
+      remaining,
+      run.handSize,
+      Math.random,
+      getLetterSetRules(run.letterSetId),
+    );
+    selectedIndices = [];
+  }
+  const usedIndex = run.actionCardIds.indexOf(id);
+  run.actionCardIds.splice(usedIndex, 1);
+  persistRun();
+  announce(`Użyto karty: ${action.name}.`);
+  renderTable();
+}
+
+function awardChallenge() {
+  const interest = getInterest(run.ink);
+  const upgradeInk = run.upgrades.includes('larger-reward') ? 2 : 0;
+  run.lastReward = 4 + Math.max(0, run.playsLeft) + interest + upgradeInk;
+  run.ink += run.lastReward;
+}
+
+function renderWordReveal() {
+  const entry = run.discoveries.at(-1);
+  const center = `<article class="reveal card"><p class="overline">Słowo odkryte</p><h2>${escapeHTML(entry.word)}</h2><p class="word-meta">${capitalize(entry.partOfSpeech)} · ${[...entry.word].length} ${letterWord([...entry.word].length)}</p><blockquote>${escapeHTML(entry.definition)}</blockquote><p class="reward">+${run.lastReward ?? 0} atramentu</p><button class="button primary" id="continue-reveal">Przejdź do sklepu</button></article>`;
+  app.innerHTML = tableShell(center);
+  document.querySelector('#continue-reveal')?.addEventListener('click', () => {
+    run = completeReveal(run);
+    persistRun();
+    renderRun();
+  });
+  focusMain();
+}
+
+function commitCurrentCategory() {
+  const categoryId = run.categories[run.categoryIndex].id;
+  if (run.committedCategoryIds?.includes(categoryId)) return;
+  profile = commitCompletedCategory(profile, getCompletedCategoryResult(run));
+  profile = updateLetterSetProgress(profile, {
+    mode: run.mode,
+    seeded: run.mode !== 'normal',
+    categoryWonWithMaxWordLength: run.maxWordLengthInCategory,
+  });
+  profile = updateUnlockProgress(profile, {
+    mode: run.mode,
+    seeded: run.mode !== 'normal',
+    categoryWonWithMaxWordLength: run.maxWordLengthInCategory,
+  });
+  saveProfile(profile);
+  run.committedCategoryIds = [...(run.committedCategoryIds ?? []), categoryId];
+}
+
+function renderCategoryReveal() {
+  commitCurrentCategory();
+  persistRun();
+  const category = run.categories[run.categoryIndex];
+  const words = run.discoveries.filter(item => item.categoryId === category.id);
+  const center = `<article class="reveal category-reveal card"><p class="overline">Kategoria odkryta</p><h2>${escapeHTML(category.name)}</h2><blockquote>${escapeHTML(category.definition)}</blockquote><div class="discovery-list">${[0, 1].map(index => words[index] ? `<div><strong>${escapeHTML(words[index].word)}</strong><span>${escapeHTML(words[index].definition)}</span></div>` : '<div class="empty"><strong>Nieodkryte słowo</strong><span>Możesz uzupełnić je w przyszłym podejściu.</span></div>').join('')}</div><button class="button primary" id="continue-category">${run.categoryIndex === run.categories.length - 1 ? 'Zakończ podejście' : 'Wybierz ulepszenie'}</button></article>`;
+  app.innerHTML = tableShell(center);
+  document.querySelector('#continue-category')?.addEventListener('click', () => {
+    run = completeReveal(run);
+    persistRun();
+    renderRun();
+  });
+  focusMain();
+}
+
+function ensureShop() {
+  if (!run.shop) {
+    run.shop = createShop({
+      profile,
+      seed: `${run.seed}:shop:${run.categoryIndex}:${run.challengeIndex}`,
+    });
+  }
+}
+
+function renderShop() {
+  ensureShop();
+  persistRun();
+  const offers = run.shop.offers.map((offer, index) => {
+    const item = offer.item;
+    const owned = offer.type === 'language' && run.languageCardIds.includes(item.id);
+    return `<article class="shop-offer ${offer.type}">
+      <p class="overline">${offer.type === 'language' ? 'Karta językowa' : 'Karta działań'}</p>
+      <h3>${escapeHTML(item.name)}</h3><p>${escapeHTML(item.description)}</p>
+      <button class="button ${offer.type === 'language' ? 'blue' : 'yellow'}" data-buy="${index}" ${owned || run.ink < item.cost ? 'disabled' : ''}>${owned ? 'Posiadasz' : `Kup · ${item.cost}`}</button>
+    </article>`;
+  }).join('');
+  const center = `<article class="shop card"><div class="challenge-top"><div><p class="overline">Sklep</p><h2>Wybierz pomoc przed następnym wyzwaniem</h2></div><strong>${run.ink} atramentu</strong></div><div class="shop-grid">${offers}</div><div class="shop-actions"><button class="button" id="reroll" ${run.ink < 2 ? 'disabled' : ''}>Nowe oferty · 2</button><button class="button primary" id="leave-shop">Dalej</button></div></article>`;
+  app.innerHTML = tableShell(center);
+  document.querySelectorAll('[data-buy]').forEach(button => button.addEventListener('click', () => {
+    const offer = run.shop.offers[Number(button.dataset.buy)];
+    const result = buyOffer(run, offer);
+    if (!result.bought) return;
+    run = { ...run, ...result, shop: { ...run.shop, offers: run.shop.offers.filter(item => item !== offer) } };
+    persistRun();
+    announce(`Kupiono: ${offer.item.name}.`);
+    renderShop();
+  }));
+  document.querySelector('#reroll')?.addEventListener('click', () => {
+    const result = rerollShop({
+      shop: run.shop,
+      ink: run.ink,
+      profile,
+      seed: `${run.seed}:shop:${run.categoryIndex}:${run.challengeIndex}`,
+    });
+    run.shop = result.shop;
+    run.ink = result.ink;
+    persistRun();
+    renderShop();
+  });
+  document.querySelector('#leave-shop')?.addEventListener('click', () => {
+    run.shop = null;
+    run = closeShop(run);
+    if (run.challengeIndex === 0) run.maxWordLengthInCategory = 0;
+    persistRun();
+    renderRun();
+  });
+  focusMain();
+}
+
+function renderUpgrade() {
+  const center = `<article class="shop card"><p class="overline">Ulepszenie</p><h2>Wybierz stałą zmianę tego podejścia</h2><div class="shop-grid">${run.upgradeOffer.map(item => `<article class="shop-offer upgrade"><h3>${escapeHTML(item.name)}</h3><p>${escapeHTML(item.description)}</p><button class="button yellow" data-upgrade="${item.id}">Wybierz</button></article>`).join('')}</div></article>`;
+  app.innerHTML = tableShell(center);
+  document.querySelectorAll('[data-upgrade]').forEach(button => button.addEventListener('click', () => {
+    run = chooseUpgrade(run, button.dataset.upgrade);
+    persistRun();
+    renderRun();
+  }));
+  focusMain();
+}
+
+function renderEnd(victory) {
+  clearRunV4();
+  const total = run?.completedChallenges?.reduce((sum, item) => sum + (item.score ?? 0), 0) ?? 0;
+  app.innerHTML = `<section class="centered card end-card"><span class="end-mark ${victory ? 'success' : 'failure'}">${victory ? '✓' : '×'}</span><p class="overline">${victory ? 'Podejście ukończone' : 'Podejście zakończone'}</p><h1>${victory ? 'Słownik został poszerzony' : 'Zabrakło punktów'}</h1><p>${victory ? 'Pokonane kategorie i odkryte słowa są już zapisane.' : 'Odkrycia z niedokończonej kategorii nie trafiły do trwałego Słownika.'}</p><div class="end-score"><span>Łączny wynik</span><strong>${total}</strong></div><div class="start-actions"><button class="button primary" id="again">Nowa gra</button><button class="button" id="see-dictionary">Słownik</button></div></section>`;
+  document.querySelector('#again')?.addEventListener('click', renderStart);
+  document.querySelector('#see-dictionary')?.addEventListener('click', renderDictionary);
+  focusMain();
+}
+
+function renderDictionary() {
+  view = 'dictionary';
+  const sections = Object.values(profile.dictionary);
+  app.innerHTML = `<section class="collection-page"><header><p class="overline">Trwałe odkrycia</p><h1>Słownik</h1><p>Każdy dział trafia tutaj dopiero po pokonaniu kategorii.</p></header>${sections.length ? `<div class="dictionary-grid">${sections.map(section => `<article class="dictionary-section card"><span class="badge">${escapeHTML(section.name)}</span><h2>${escapeHTML(section.name)}</h2><p>${escapeHTML(section.definition)}</p><div class="dictionary-words">${[0, 1].map(index => section.words[index] ? `<div><strong>${escapeHTML(section.words[index].word)}</strong><span>${escapeHTML(section.words[index].definition)}</span></div>` : '<div class="empty"><strong>Nieodkryte słowo</strong><span>To miejsce może zostać uzupełnione później.</span></div>').join('')}</div></article>`).join('')}</div>` : '<article class="empty-state card"><h2>Słownik jest jeszcze pusty</h2><p>Pokonaj finałową Kategorię, aby zapisać pierwszy dział.</p><button class="button primary" id="empty-start">Rozpocznij grę</button></article>'}</section>`;
+  document.querySelector('#empty-start')?.addEventListener('click', renderStart);
+  focusMain();
+}
+
+function renderCards() {
+  view = 'cards';
+  const unlocked = new Set(profile.unlockedCardIds);
+  app.innerHTML = `<section class="collection-page"><header><p class="overline">Metagra</p><h1>Karty językowe</h1><p>Premie wynikają z rzeczywistych części mowy, zapisu i cech słowa.</p></header><div class="catalog-grid">${Object.values(LANGUAGE_CARDS).map(card => `<article class="catalog-card card ${unlocked.has(card.id) ? '' : 'locked'}"><span class="badge">${escapeHTML(card.category)}</span><h2>${escapeHTML(card.name)}</h2><p>${escapeHTML(card.description)}</p><small>${unlocked.has(card.id) ? 'Odblokowana' : escapeHTML(card.unlockDescription)}</small></article>`).join('')}</div></section>`;
+  focusMain();
+}
+
+function renderSets() {
+  view = 'sets';
+  const unlocked = new Set(profile.unlockedLetterSetIds);
+  app.innerHTML = `<section class="collection-page"><header><p class="overline">Metagra</p><h1>Zestawy liter</h1><p>Każdy zestaw zmienia rozkład lub zasady ręki. Warunki są zawsze jawne.</p></header><div class="catalog-grid">${Object.values(LETTER_SETS).map(set => `<article class="catalog-card card ${unlocked.has(set.id) ? '' : 'locked'}"><span class="badge">${unlocked.has(set.id) ? 'Dostępny' : 'Zablokowany'}</span><h2>${escapeHTML(set.name)}</h2><p>${escapeHTML(set.description)}</p><small>${unlocked.has(set.id) ? 'Możesz wybrać przed podejściem.' : escapeHTML(set.unlockDescription)}</small></article>`).join('')}</div></section>`;
+  focusMain();
+}
+
+function miniCard(item, actionable = false) {
+  if (!item) return '';
+  return `<button class="mini-card ${actionable ? 'actionable' : ''}" ${actionable ? `data-action-id="${item.id}"` : 'disabled'} title="${escapeHTML(item.description)}"><strong>${escapeHTML(item.name)}</strong><span>${escapeHTML(item.description)}</span></button>`;
+}
+
+function letterValue(letter) {
+  return LETTER_VALUES[letter] ?? 1;
+}
+
+function letterWord(count) {
+  if (count === 1) return 'litera';
+  if ([2, 3, 4].includes(count)) return 'litery';
+  return 'liter';
+}
+
+function persistRun() {
+  if (run?.phase === 'victory' || run?.phase === 'defeat') clearRunV4();
+  else saveRunV4(run);
+  window.__litero = { run, profile, view };
+}
+
+function announce(message) {
+  live.textContent = '';
+  requestAnimationFrame(() => { live.textContent = message; });
+}
+
+function focusMain(move = true) {
+  if (move) app.focus({ preventScroll: true });
+  window.__litero = { run, profile, view };
+}
+
+function capitalize(value) {
+  return value ? value[0].toLocaleUpperCase('pl-PL') + value.slice(1) : '';
+}
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  })[char]);
+}
+
+function loadingView() {
+  return '<section class="centered card"><span class="loader" aria-hidden="true"></span><p class="overline">Przygotowanie stołu</p><h1>Wczytujemy Słownik…</h1></section>';
+}
