@@ -1,6 +1,6 @@
 {
   "name": "litero",
-  "version": "26.7.0",
+  "version": "3.0.0",
   "description": "Edukacyjna polska gra słowna o odkrywaniu znaczeń",
   "private": true,
   "scripts": {
@@ -17,9 +17,5 @@
     "@playwright/test": "^1.60.0",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
-  },
-  "dependencies": {
-    "@fontsource-variable/geist": "^5.2.9",
-    "@fontsource-variable/geist-mono": "^5.2.8"
   }
 }

@@ -1,6 +1,5 @@
 import { SUPPORT_LEVELS } from './adaptation.js';
 import { normalizeAnswer } from './content.js';
-import { replaceUsedLetters } from './letters.js';
 import { scoreCraftWord } from './scoring.js';
 
 const VOWELS = new Set(['A', 'Ą', 'E', 'Ę', 'I', 'O', 'Ó', 'U', 'Y']);
@@ -15,10 +14,10 @@ function revealFirst(state, predicate) {
   if (index >= 0) state.revealed.add(index);
 }
 
-export function createRound({ puzzle, hand, letterPool = [], supportLevel = 1 }) {
+export function createRound({ puzzle, hand, supportLevel = 1 }) {
   const support = SUPPORT_LEVELS[supportLevel] ?? SUPPORT_LEVELS[1];
   return {
-    phase: 'compose', puzzle, hand: [...hand], letterPool: [...letterPool], supportLevel,
+    phase: 'compose', puzzle, hand: [...hand], supportLevel,
     maxTurns: support.maxTurns, turnsLeft: support.maxTurns,
     attemptsLeft: support.attempts, revealed: new Set(), history: [],
     hintsUsed: 0, wrongGuesses: 0, wordCraftPoints: 0, stylePoints: 0,
@@ -33,10 +32,8 @@ export function composeWord(state, play) {
     categoryRelated: play.categoryRelated,
     previousWords: state.history.map(item => item.word),
   });
-  const supply = replaceUsedLetters(state.hand, state.letterPool, play.indices ?? []);
   return copy(state, {
     phase: 'reward', turnsLeft: state.turnsLeft - 1,
-    hand: supply.hand, letterPool: supply.pool,
     wordCraftPoints: state.wordCraftPoints + wordCraftPoints,
     history: [...state.history, { word: normalized, points: wordCraftPoints, categoryRelated: Boolean(play.categoryRelated) }],
     pendingReward: play.categoryRelated || normalized.length >= 6 ? 'strong' : 'standard',
@@ -45,7 +42,7 @@ export function composeWord(state, play) {
 
 export function chooseReward(state, reward) {
   if (state.phase !== 'reward') return state;
-  const next = copy(state, { phase: 'compose', pendingReward: null });
+  const next = copy(state, { phase: 'solve', pendingReward: null });
   if (reward === 'reveal-consonant') revealFirst(next, letter => !VOWELS.has(letter));
   if (reward === 'buy-vowel') revealFirst(next, letter => VOWELS.has(letter));
   if (reward === 'locate-letter') revealFirst(next, () => true);
