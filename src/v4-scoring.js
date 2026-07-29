@@ -48,6 +48,19 @@ function getLengthTier(length) {
     ?? LENGTH_TIERS[0];
 }
 
+export function scoreLetter(letter) {
+  const normalized = String(letter ?? '').toLocaleUpperCase('pl-PL');
+  const chips = LETTER_VALUES[normalized] ?? 0;
+  return {
+    valid: chips > 0,
+    chips,
+    mult: 1,
+    score: chips,
+    appliedCards: [],
+    aliterationStreak: 0,
+  };
+}
+
 export function scoreWord(entry, context = {}) {
   const surface = entry?.surface?.toLocaleUpperCase('pl-PL') ?? '';
   if (!WORD_PATTERN.test(surface) || [...surface].length < 2 || [...surface].length > 8) {
