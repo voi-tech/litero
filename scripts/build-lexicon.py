@@ -19,6 +19,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES = ROOT / "data/categories-v4.json"
 OUTPUT = ROOT / "public/data/lexicon-v4.json"
 
+FREQUENCY_CANDIDATE_LIMIT = 100_000
+ENTRY_LIMIT = 20_000
+REQUIRED_COMMON_WORDS = {"byk", "byki", "kot", "tok"}
 WORD_RE = re.compile(r"^[a-ząćęłńóśźż]{2,8}$")
 PROPER_TAGS = {
     "nazwa_geograficzna",
@@ -174,15 +177,16 @@ def analyse_word(morfeusz: morfeusz2.Morfeusz, surface: str, target: bool) -> di
 
 def main() -> None:
     targets = target_words()
+    required = targets | REQUIRED_COMMON_WORDS
     frequent = [
         word.lower()
-        for word in top_n_list("pl", 40_000)
+        for word in top_n_list("pl", FREQUENCY_CANDIDATE_LIMIT)
         if WORD_RE.fullmatch(word.lower())
     ]
 
     candidates = []
     seen = set()
-    for word in [*frequent, *sorted(targets)]:
+    for word in [*sorted(REQUIRED_COMMON_WORDS), *frequent, *sorted(targets)]:
         if word in seen:
             continue
         seen.add(word)
@@ -191,14 +195,14 @@ def main() -> None:
     morfeusz = morfeusz2.Morfeusz()
     entries = []
     for word in candidates:
-        entry = analyse_word(morfeusz, word, word in targets)
+        entry = analyse_word(morfeusz, word, word in required)
         if entry:
             entries.append(entry)
-        if len(entries) >= 6_000:
+        if len(entries) >= ENTRY_LIMIT:
             break
 
     existing = {entry["surface"] for entry in entries}
-    for word in sorted(targets - existing):
+    for word in sorted(required - existing):
         entry = analyse_word(morfeusz, word, True)
         if entry:
             entries.append(entry)

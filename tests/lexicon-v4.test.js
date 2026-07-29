@@ -17,7 +17,7 @@ describe('kuratorowany słownik v4', () => {
       'https://github.com/rspeer/wordfreq/',
     ]));
     expect(payload.notice).toContain('THIRD_PARTY_NOTICES.md');
-    expect(payload.entries.length).toBeGreaterThanOrEqual(3000);
+    expect(payload.entries.length).toBeGreaterThanOrEqual(20_000);
     expect(payload.entries[0]).toMatchObject({
       surface: expect.any(String),
       lemma: expect.any(String),
@@ -33,6 +33,14 @@ describe('kuratorowany słownik v4', () => {
       .map(entry => entry.word.toLocaleLowerCase('pl-PL'));
 
     for (const target of targets) expect(available.has(target)).toBe(true);
+  });
+
+  it('zawiera zwykłe polskie słowa potrzebne w rozgrywce', () => {
+    const available = new Set(payload.entries.map(entry => entry.surface));
+
+    for (const word of ['byk', 'byki', 'kot', 'tok']) {
+      expect(available.has(word), `brak zwykłego słowa: ${word}`).toBe(true);
+    }
   });
 
   it('ogranicza formy do polskich słów długości 2–8 i pomija nazwy własne', () => {
