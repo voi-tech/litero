@@ -19,9 +19,10 @@ import {
   saveProfile,
   saveRunV4,
 } from './v4-persistence.js';
-import { getLexiconEntry, loadLexicon } from './lexicon.js';
+import { loadLexicon } from './lexicon.js';
 import { buildPlayableHand, refillPlayableHand } from './v4-letters.js';
-import { LETTER_VALUES, scoreWord } from './v4-scoring.js';
+import { scoreSelection } from './v4-play.js';
+import { LETTER_VALUES } from './v4-scoring.js';
 import { LANGUAGE_CARDS, ACTION_CARDS, updateUnlockProgress } from './language-cards.js';
 import {
   LETTER_SETS,
@@ -315,12 +316,12 @@ function renderTable(focusIndex = null) {
       <div class="challenge-top"><span class="badge">${run.challenge.label}</span><span>${run.challenge.kind === 'category' ? escapeHTML(run.challenge.categoryName) : `${capitalize(run.challenge.partOfSpeech)} · ${run.challenge.letterCount} ${letterWord(run.challenge.letterCount)}`}</span></div>
       <div class="score-line"><strong>${run.runningScore}</strong><span>/ ${target} pkt</span></div>
       <div class="progress-track" role="progressbar" aria-label="Wynik wyzwania" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${run.runningScore}"><span style="width:${percent}%"></span></div>
-      <div class="attempt-stats"><div><strong>${run.playsLeft}</strong><span>zagrania</span></div><div><strong>${run.discardsLeft}</strong><span>odrzucenia</span></div><div><strong>${selectedWord || '—'}</strong><span>wybrane litery</span></div></div>
+      <div class="attempt-stats"><div><strong>${run.playsLeft}</strong><span>pozostałe zagrania</span></div><div><strong>${run.discardsLeft}</strong><span>pozostałe odrzucenia</span></div><div><strong>${selectedWord || '—'}</strong><span>wybrane litery</span></div></div>
     </article>
     <article class="hand-area" aria-label="Ręka liter">
       <div class="letter-hand">${run.hand.map((letter, index) => `<button class="letter-tile ${selectedIndices.includes(index) ? 'selected' : ''}" data-letter-index="${index}" aria-pressed="${selectedIndices.includes(index)}" aria-label="Litera ${letter}">${letter}<small>${letterValue(letter)}</small></button>`).join('')}</div>
-      <div class="play-actions"><button class="button" id="discard" ${!selectedIndices.length || run.discardsLeft <= 0 ? 'disabled' : ''}>Odrzuć</button><button class="button primary" id="play" ${selectedWord.length < 2 ? 'disabled' : ''}>Zagraj słowo</button></div>
-      <p class="table-message" id="table-message">Wybierz litery w kolejności. Niepoprawne słowo nie zużywa zagrania.</p>
+      <div class="play-actions"><button class="button" id="discard" ${!selectedIndices.length || run.discardsLeft <= 0 ? 'disabled' : ''}>Odrzuć</button><button class="button primary" id="play" ${selectedWord.length < 1 ? 'disabled' : ''}>Zagraj litery</button></div>
+      <p class="table-message" id="table-message">Punktują kolejne słowa od lewej. Bez słowa punktuje najlepsza litera.</p>
     </article>`;
   app.innerHTML = tableShell(center);
   document.querySelectorAll('[data-letter-index]').forEach(button => button.addEventListener('click', () => {
@@ -339,58 +340,70 @@ function renderTable(focusIndex = null) {
   }
 }
 
-function adjustedPlayScore(result) {
+function adjustedPlayScore(result, word, index, isWord) {
   let score = result.score;
   const upgradeMultiplier = run.upgrades.includes('letter-value') ? 1.25 : 1;
   score = Math.floor(score * upgradeMultiplier);
   const boss = run.challenge.kind === 'category' ? run.challenge.bossModifier : null;
   if (boss?.vowelsGiveNoChips) {
-    const word = selectedIndices.map(index => run.hand[index]).join('');
-    const vowelShare = [...word].filter(letter => VOWELS.has(letter)).length / word.length;
+    const letters = [...word];
+    const vowelShare = letters.filter(letter => VOWELS.has(letter)).length / letters.length;
     score = Math.max(1, Math.floor(score * (1 - vowelShare)));
   }
-  if (boss?.firstPlayMultiplier && run.wordsPlayedInChallenge === 0) {
+  if (
+    isWord
+    && boss?.firstPlayMultiplier
+    && run.wordsPlayedInChallenge + index === 0
+  ) {
     score = Math.floor(score * boss.firstPlayMultiplier);
   }
   return score;
 }
 
 function playSelection() {
-  const word = selectedIndices.map(index => run.hand[index]).join('');
-  const entry = getLexiconEntry(word);
-  if (!entry) {
-    announce('Tego słowa nie ma w słowniku. Zagranie nie zostało zużyte.');
-    document.querySelector('#table-message').textContent = 'Tego słowa nie ma w słowniku. Spróbuj innego układu.';
-    return;
-  }
-  const score = scoreWord(entry, {
+  const selection = selectedIndices.map(index => run.hand[index]).join('');
+  const play = scoreSelection(selection, {
     activeCardIds: run.languageCardIds,
     letterSetId: run.letterSetId,
     previousWord: run.previousWord,
     aliterationStreak: run.aliterationStreak,
     doubleNext: run.doubleNext,
+  }, {
+    adjustScore: ({ result, word, index, isWord }) => (
+      adjustedPlayScore(result, word, index, isWord)
+    ),
   });
-  const finalScore = adjustedPlayScore(score);
+  if (!play.valid) return;
+
   const oldPhase = run.phase;
-  run = playValidWord(run, { ...score, word, score: finalScore });
-  run.previousWord = word;
-  run.aliterationStreak = score.aliterationStreak;
-  run.wordsPlayedInChallenge += 1;
-  run.doubleNext = false;
-  run.maxWordLengthInCategory = Math.max(run.maxWordLengthInCategory ?? 0, [...word].length);
-  updateMetaForWord(entry, score, finalScore);
+  run = playValidWord(run, { valid: true, score: play.score });
+  if (play.kind === 'words') {
+    run.previousWord = play.previousWord;
+    run.aliterationStreak = play.aliterationStreak;
+    run.wordsPlayedInChallenge += play.units.length;
+    run.doubleNext = false;
+    for (const unit of play.units) {
+      run.maxWordLengthInCategory = Math.max(
+        run.maxWordLengthInCategory ?? 0,
+        [...unit.word].length,
+      );
+      updateMetaForWord(unit.entry, unit.rawScore, unit.score);
+    }
+  }
 
   const remaining = run.hand.filter((_, index) => !selectedIndices.includes(index));
   run.hand = refillPlayableHand(
     remaining,
     run.handSize,
-    deterministicRandom(`${run.seed}:refill:${run.completedChallenges.length}:${run.playsLeft}:${word}`),
+    deterministicRandom(`${run.seed}:refill:${run.completedChallenges.length}:${run.playsLeft}:${selection}`),
     getLetterSetRules(run.letterSetId),
   );
   selectedIndices = [];
   if (oldPhase === 'playing' && run.phase !== 'playing' && run.phase !== 'defeat') awardChallenge();
   persistRun();
-  announce(`${word}: ${finalScore} punktów.`);
+  announce(play.kind === 'words'
+    ? `${play.words.map(item => item.word).join(' + ')}: ${play.score} punktów.`
+    : `${play.letter.letter}: ${play.score} punktów — najlepsza litera.`);
   renderRun();
 }
 

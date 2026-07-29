@@ -14,9 +14,25 @@ test('płynnie przechodzi z definicji do stołu bez zgadywania podczas gry', asy
   await expect(page.getByLabel('Odpowiedź')).toBeVisible();
   await page.getByRole('button', { name: 'Rozpocznij wyzwanie' }).click();
 
-  await expect(page.getByRole('button', { name: 'Zagraj słowo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zagraj litery' })).toBeVisible();
   await expect(page.getByLabel('Odpowiedź')).toHaveCount(0);
-  await expect(page.getByText(/Niepoprawne słowo nie zużywa zagrania/)).toBeVisible();
+  await expect(page.locator('#table-message')).toContainText(
+    'Punktują kolejne słowa od lewej',
+  );
+});
+
+test('pokazuje pozostałe akcje i pozwala zagrać jedną literę', async ({ page }) => {
+  await page.getByRole('button', { name: 'Pełna gra' }).click();
+  await page.getByRole('button', { name: 'Rozpocznij wyzwanie' }).click();
+
+  await expect(page.getByText('pozostałe zagrania', { exact: true })).toBeVisible();
+  await expect(page.getByText('pozostałe odrzucenia', { exact: true })).toBeVisible();
+  await expect(page.locator('.attempt-stats div').first().locator('strong')).toHaveText('5');
+
+  await page.locator('.letter-tile').first().click();
+  await page.getByRole('button', { name: 'Zagraj litery' }).click();
+
+  await expect(page.locator('.attempt-stats div').first().locator('strong')).toHaveText('4');
 });
 
 test('wybór kafelka zachowuje fokus klawiatury', async ({ page }) => {

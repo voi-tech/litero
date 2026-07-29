@@ -22,7 +22,9 @@ Kategorii.
 Przed wyzwaniem słownym gracz widzi część mowy, długość, definicję, cel i jawne
 skutki pominięcia. Może rozpocząć grę, odgadnąć słowo z definicji i pominąć je
 z premią albo pominąć bez odpowiedzi. Podczas właściwej gry nie ma zgadywania
-ani wskazówek: każde zagranie tworzy dokładnie jedno słowo i powiększa wynik.
+ani wskazówek. Zagranie może zawierać kilka kolejnych słów i dodatkowe litery:
+punktują rozpoznane słowa od lewej, a jeśli nie ma żadnego — najwyżej wyceniona
+litera. Każde niepuste zagranie zużywa jedną próbę i wszystkie wybrane kafelki.
 
 Pokonanie celu odsłania słowo i definicję, a następnie otwiera sklep. Finał
 pokazuje nazwę kategorii oraz obowiązkowe utrudnienie; nie można go pominąć.
