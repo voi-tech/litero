@@ -3,6 +3,7 @@
   "version": "4.0.0",
   "description": "Edukacyjna polska gra słowna o odkrywaniu znaczeń",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

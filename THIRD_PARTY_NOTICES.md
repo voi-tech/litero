@@ -18,9 +18,23 @@ Pełna treść i aktualne informacje:
 
 ## wordfreq
 
-`wordfreq` © Robyn Speer i współtwórcy, licencja Apache 2.0. W Litero lista
+`wordfreq` © Robyn Speer i współtwórcy. Kod biblioteki jest na licencji
+Apache 2.0, a dołączone do niej dane częstości na licencji Creative Commons
+Uznanie autorstwa, Na tych samych warunkach 4.0 (CC BY-SA 4.0). W Litero lista
 częstości służy wyłącznie do wybrania współczesnych form, które są następnie
 analizowane przez Morfeusza i filtrowane na etapie budowania.
 
 Kod i pełna licencja:
 [rspeer/wordfreq](https://github.com/rspeer/wordfreq/).
+
+## Fonty
+
+Inter (© The Inter Project Authors) i Outfit (© The Outfit Project Authors)
+są udostępniane na licencji SIL Open Font License 1.1
+([treść licencji](https://openfontlicense.org/open-font-license-official-text/)).
+
+## Kod Litero
+
+Kod źródłowy gry jest udostępniony na licencji MIT (plik `LICENSE`). Licencja
+MIT nie obejmuje danych i fontów opisanych wyżej; obowiązują dla nich ich
+własne licencje.

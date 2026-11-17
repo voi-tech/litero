@@ -5,3 +5,10 @@ dist/
 .vercel
 test-results/
 playwright-report/
+
+# Secrets and local config (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
