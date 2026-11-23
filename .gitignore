@@ -12,3 +12,6 @@ playwright-report/
 !.env.example
 *.pem
 *.key
+
+# local git worktrees
+.worktrees/
